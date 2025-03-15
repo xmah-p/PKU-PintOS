@@ -201,6 +201,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  /* May run before this returns. */
+
   return tid;
 }
 
@@ -237,8 +239,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, list_thread_greater, NULL);
   t->status = THREAD_READY;
+  
   intr_set_level (old_level);
 }
 
@@ -308,7 +311,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, list_thread_greater, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -343,6 +346,25 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
+}
+
+/** Sets the current thread's sleep_ticks to SLEEP_TICKS. */
+void
+thread_set_sleep_ticks (int64_t sleep_ticks) 
+{
+  thread_current ()->sleep_ticks = sleep_ticks;
+}
+
+/** Returns the current thread's sleep_ticks. */
+int64_t
+thread_get_sleep_ticks (void) 
+{
+  return thread_current ()->sleep_ticks;
+}
+
+/** list_less_func for comparing thread priorities. */
+bool list_thread_greater (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  return list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority;
 }
 
 /** Sets the current thread's nice value to NICE. */
@@ -460,7 +482,7 @@ init_thread (struct thread *t, const char *name, int priority)
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
-  t->stack = (uint8_t *) t + PGSIZE;
+  t->stack = (uint8_t *) t + PGSIZE;  /* stack starts at top of page */
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 

@@ -129,11 +129,54 @@ pintos_init (void)
 
   printf ("Boot complete.\n");
   
-  if (*argv != NULL) {
+  if (*argv != NULL) 
+  {
     /* Run actions specified on kernel command line. */
     run_actions (argv);
-  } else {
+  } 
+  else 
+  {
     // TODO: no command line passed to kernel. Run interactively 
+    printf ("PKUOS> ");
+    int buf_size = 512;
+    char* input = malloc (buf_size);    // buffer to store user input
+    memset (input, 0, buf_size); 
+    int size = 0;             // current size of the buffer
+    
+    while (true) 
+    {
+      char c = input_getc ();
+      printf ("%c", c);
+      if (c != '\r' && c != '\n') 
+      {
+        // buffer only stores the first 100 characters
+        // this is to prevent buffer overflow
+        // TODO: if in the future we want to support longer input, this should be changed
+        if (size < 100) 
+        {
+          input[size++] = c;
+        }
+      } else 
+      {
+        printf ("\n");
+        if (strcmp (input, "whoami") == 0) 
+        {
+          printf ("2200017768\n");
+        } else if (strcmp (input, "exit") == 0) 
+        {
+          break;
+        } else 
+        {
+          printf ("invalid command\n");
+        }
+        printf ("PKUOS> ");
+        memset (input, 0, buf_size); 
+        size = 0;
+      }
+    }
+    
+    free(input);
+    
   }
 
   /* Finish up. */
