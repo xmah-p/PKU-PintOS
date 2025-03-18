@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/fixedpoints.h"
 
 /** States in a thread's life cycle. */
 enum thread_status
@@ -96,6 +97,9 @@ struct thread
 
     /* Used by sleep_list */
     struct list_elem sleep_elem;        /**< List element for sleep list. */
+
+    int nice;                           /**< Nice value. */
+    fp recent_cpu;                     /**< Recent CPU. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

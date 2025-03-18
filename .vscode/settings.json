@@ -1,0 +1,19 @@
+{
+  "files.associations": {
+    "*.ys": "asm-intel-x86-generic",
+    "*.yo": "asm-intel-x86-generic",
+    "timer.h": "c",
+    "compare": "c",
+    "cstdint": "c",
+    "malloc.h": "c",
+    "switch.h": "c",
+    "interrupt.h": "c",
+    "stdio.h": "c",
+    "debug.h": "c",
+    "thread.h": "c",
+    "palloc.h": "c",
+    "synch.h": "c",
+    "fixedpoints.h": "c",
+    "process.h": "c"
+  }
+}
