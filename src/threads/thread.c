@@ -74,7 +74,6 @@ static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
@@ -418,8 +417,14 @@ void
 thread_set_priority (int new_priority) 
 {
   if (thread_mlfqs) return;
-  /* TODO */
-  thread_current ()->priority = new_priority;
+  struct thread *cur = thread_current ();
+  int old_priority = cur->priority;
+  if (old_priority < new_priority)
+    cur->priority = new_priority;
+  else if (old_priority > new_priority)
+    cur->priority = cur->donated_priority > new_priority ? cur->donated_priority : new_priority;
+  cur->base_priority = new_priority;
+  if (cur->priority < old_priority) thread_yield ();
 }
 
 /** Returns the current thread's priority. */
@@ -453,6 +458,7 @@ thread_set_nice (int nice UNUSED)
   update_priority (t, NULL);
   list_sort (&ready_list, list_thread_greater, NULL);
   if (t->priority < old_priority) thread_yield ();
+  /* TODO */
 }
 
 /** Returns the current thread's nice value. */
@@ -540,7 +546,7 @@ running_thread (void)
 }
 
 /** Returns true if T appears to point to a valid thread. */
-static bool
+bool
 is_thread (struct thread *t)
 {
   return t != NULL && t->magic == THREAD_MAGIC;
@@ -562,6 +568,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;  /* stack starts at top of page */
   t->priority = priority;
+  t->base_priority = priority;
+  list_init (&t->locks);
+  t->waiting_lock = NULL;
+  t->donated_priority = PRI_MIN;
   t->nice = 0;
   t->recent_cpu = int_to_fp (0);
   t->magic = THREAD_MAGIC;
@@ -595,8 +605,9 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   /* TODO: sort? */
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else if (!thread_mlfqs)
+      list_sort (&ready_list, list_thread_greater, NULL);
+  return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /** Completes a thread switch by activating the new thread's page

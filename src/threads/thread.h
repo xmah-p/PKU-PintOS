@@ -101,6 +101,11 @@ struct thread
     int nice;                           /**< Nice value. */
     fp recent_cpu;                     /**< Recent CPU. */
 
+    int base_priority;                  /**< Base priority. */
+    int donated_priority;               /**< Donated priority. */
+    struct lock *waiting_lock;          /**< Lock waiting for. */
+    struct list locks;                  /**< List of locks held. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /**< Page directory. */
@@ -151,5 +156,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+bool is_thread (struct thread *);
 
 #endif /**< threads/thread.h */

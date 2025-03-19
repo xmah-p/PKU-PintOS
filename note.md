@@ -101,30 +101,69 @@ TODO：把 timer 换成 semaphore
 
 TODO：格式：col 超字数
 
-pintos -v -k -T 480 --bochs  -- -q -mlfqs run mlfqs-block < /dev/null 2> tests/threads/mlfqs-block.errors > tests/threads/mlfqs-block.output
-perl -I../.. ../../tests/threads/mlfqs-block.ck tests/threads/mlfqs-block tests/threads/mlfqs-block.result
-FAIL tests/threads/mlfqs-block
-Test output failed to match any acceptable form.
 
-Acceptable output:
-  (mlfqs-block) begin
-  (mlfqs-block) Main thread acquiring lock.
-  (mlfqs-block) Main thread creating block thread, sleeping 25 seconds...
-  (mlfqs-block) Block thread spinning for 20 seconds...
-  (mlfqs-block) Block thread acquiring lock...
-  (mlfqs-block) Main thread spinning for 5 seconds...
-  (mlfqs-block) Main thread releasing lock.
-  (mlfqs-block) ...got it.
-  (mlfqs-block) Block thread should have already acquired lock.
-  (mlfqs-block) end
-Differences in `diff -u' format:
-  (mlfqs-block) begin
-  (mlfqs-block) Main thread acquiring lock.
-  (mlfqs-block) Main thread creating block thread, sleeping 25 seconds...
-  (mlfqs-block) Block thread spinning for 20 seconds...
-  (mlfqs-block) Block thread acquiring lock...
-  (mlfqs-block) Main thread spinning for 5 seconds...
-  (mlfqs-block) Main thread releasing lock.
-- (mlfqs-block) ...got it.
-  (mlfqs-block) Block thread should have already acquired lock.
-  (mlfqs-block) end
+struct donation 
+{
+  struct lock *lock;      
+  int priority;     /* Priority of the thread that donated the priority */
+  struct list_elem elem;  
+};
+
+void donate_priority(struct thread *donatee, int priority, struct lock *lock)
+{
+  struct donation *d;
+  struct list_elem *e;
+  bool found = false;
+
+  /* Check if the lock is already in the donations list 
+     (A holds lock, B waits for A, C waits for A too)
+     update B's priority
+     */
+  for (e = list_begin (&donatee->donations); e != list_end (&donatee->donations); e = list_next (e))
+  {
+    d = list_entry (e, struct donation, elem);
+    if (d->lock == lock)
+    {
+      d->priority = priority;
+      found = true;
+      break;
+    }
+  }
+  if (!found)
+  {
+    d = (struct donation *) malloc(sizeof(struct donation));
+    d->lock = lock;
+    d->priority = priority;
+    list_push_back(&donatee->donations, &d->elem);
+  }
+
+  update_donated_priority(donatee);
+  if (donatee->waiting_lock != NULL)
+    donate_priority(donatee->waiting_lock->holder, donatee->donated_priority, donatee->waiting_lock);
+}
+
+void update_donated_priority(struct thread *t)
+{
+  int old_priority = t->donated_priority;
+  t->donated_priority = t->base_priority;
+
+  struct donation *d;
+  struct list_elem *e;
+  for (e = list_begin (&t->donations); e != list_end (&t->donations); e = list_next (e))
+  {
+    d = list_entry (e, struct donation, elem);
+    if (d->priority > t->donated_priority)
+      t->donated_priority = d->priority;
+  }
+
+  if (t->donated_priority != old_priority && t->waiting_lock != NULL)
+  {  
+    struct thread *holder = t->waiting_lock->holder;
+    update_donated_priority(holder);
+  }
+
+  if (t->status == THREAD_READY)
+  {
+    thread_yield();
+  }
+}
