@@ -167,3 +167,129 @@ void update_donated_priority(struct thread *t)
     thread_yield();
   }
 }
+
+# Lab 2
+
+需要关注的文件：
+
+```bash
+src/userprog/:
+
+process.h, .c
+pagedir.h, .c
+syscall.h, .c
+exception.h, .c
+gdt.h, .c
+tss.h, .c
+
+src/filesys/:
+filesys.h
+file.h
+```
+
+文件系统没有内部同步，并发的访问会干扰彼此。文件大小自创建时就固定了，不能扩展。单文件的数据连续存储。没有子目录。文件名至多 14 个字符。
+
+类 Unix 的延迟删除文件
+
+Incidentally, these commands work by passing special commands extract and append on the kernel's command line and copying to and from a special simulated "scratch" partition. If you're very curious, you can look at the pintos script as well as filesys/fsutil.c to learn the implementation details.
+
+```bash
+pintos-mkdisk filesys.dsk --filesys-size=2
+pintos -- -f -q
+pintos -p ../../examples/echo -a echo -- -q
+pintos -- -q run 'echo PKUOS'
+
+pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
+```
+
+
+You might want to create a clean reference file system disk and copy that over whenever you trash your filesys.dsk beyond a useful state, which may happen occasionally while debugging.
+
+用户栈大小固定，代码段从用户虚拟地址的 0x08048000 开始。
+
+The linker sets the layout of a user program in memory, as directed by a "linker script" that tells it the names and locations of the various program segments. You can learn more about linker scripts by reading the "Scripts" chapter in the linker manual, accessible via info ld.
+
+To view the layout of a particular executable, run objdump (80x86) or i386-elf-objdump (SPARC) with the -p option.
+
+As shown above, your code should start the stack at the very top of the user virtual address space, in the page just below virtual address PHYS_BASE (defined in threads/vaddr.h).
+
+顺序：
+
+1. 传参
+2. `halt`
+3. `exit`
+4. `write`
+5. 把 `process_wait` 改成死循环
+6. 剩余工作
+7. 正确的 `process_wait`
+
+如何安排 `argv[]` 的元素顺序？如何避免栈溢出？
+
+防止大量错误处理代码妨碍主逻辑的可读性。错误处理时保证锁、buffer 等资源释放。
+
+保证 `exec` 在其程序结束前不会返回。
+
+Consider parent process P with child process C.  How do you
+ensure proper synchronization and avoid race conditions when P
+>calls wait(C) before C exits?  After C exits?  How do you ensure
+>that all resources are freed in each case?  How about when P
+>terminates without waiting, before C exits?  After C exits?  Are
+>there any special cases?
+
+
+
+```bash
+docker run -it --rm --name pintos --mount type=bind,source=D:/wksp/pintos,target=/home/PKUOS/pintos pkuflyingpig/pintos bash
+
+cd pintos/src/userprog/; make
+
+cd build;
+
+# 或者
+cd pintos/src/userprog/build
+
+pintos --gdb --   # debug
+
+make tests/userprog/alarm-priority.result   
+rm tests/userprog/alarm-priority.output; make tests/userprog/alarm-priority.result # test a certain case
+
+make check > ~/pintos/check.txt  # run all tests
+make grade > ~/pintos/grade.txt  # run all tests and grade
+
+```
+
+debug：开一个新终端
+
+```bash
+docker exec -it pintos bash
+
+cd pintos/src/userprog/build; pintos-gdb kernel.o
+
+debugpintos
+```
+
+如果这一步网络不通，ctrl+a+x 第一个终端的 qemu
+
+b *0x7c00
+
+load_kernel
+b *0x7c7e    
+
+ctrl+leftarrow 卡死
+
+```bash
+# 在 pintos/src/userprog/build 目录下执行
+pintos-mkdisk filesys.dsk --filesys-size=2    # 创建磁盘
+pintos -- -f -q    # 格式化磁盘
+pintos -p ../../examples/echo -a echo -- -q   # 将 echo 程序添加到磁盘
+pintos -- -q run 'echo PKUOS'    # 运行 echo 程序，输出 PKUOS
+
+# 究极四合一版
+pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
+
+pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
+
+
+-f -q extract run 'echo PKUOS'
+
+```

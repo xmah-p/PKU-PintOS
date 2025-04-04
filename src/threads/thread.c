@@ -22,6 +22,8 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 /** List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -99,12 +101,16 @@ static void update_priority(struct thread *t, void *aux UNUSED) {
   if (t->priority < PRI_MIN) t->priority = PRI_MIN;
 }
 
-/** Once per second the value of load_avg is recalculated using this function. */
+/** Once per second the value of load_avg is recalculated 
+    using this function. */
 static void update_load_avg(void) {
   /* load_avg = (59/60)*load_avg + (1/60)*ready_threads */
+
   int ready_threads_cnt = list_size(&ready_list);
   if (thread_current() != idle_thread) ready_threads_cnt++;
-  load_avg = fp_mul(int_to_fp(59) / 60, load_avg) + int_to_fp(ready_threads_cnt) / 60;
+
+  load_avg = fp_mul(int_to_fp(59) / 60, load_avg) +
+             int_to_fp(ready_threads_cnt) / 60;
 }
 
 /** Initializes the threading system by transforming the code
@@ -417,14 +423,17 @@ void
 thread_set_priority (int new_priority) 
 {
   if (thread_mlfqs) return;
+
   struct thread *cur = thread_current ();
   int old_priority = cur->priority;
   if (old_priority < new_priority)
     cur->priority = new_priority;
   else if (old_priority > new_priority)
-    cur->priority = cur->donated_priority > new_priority ? cur->donated_priority : new_priority;
+    cur->priority = MAX (cur->donated_priority, new_priority);
   cur->base_priority = new_priority;
-  if (cur->priority < old_priority) thread_yield ();
+
+  if (cur->priority < old_priority) 
+    thread_yield ();
 }
 
 /** Returns the current thread's priority. */
@@ -458,7 +467,6 @@ thread_set_nice (int nice UNUSED)
   update_priority (t, NULL);
   list_sort (&ready_list, list_thread_greater, NULL);
   if (t->priority < old_priority) thread_yield ();
-  /* TODO */
 }
 
 /** Returns the current thread's nice value. */
@@ -604,7 +612,6 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  /* TODO: sort? */
   else if (!thread_mlfqs)
       list_sort (&ready_list, list_thread_greater, NULL);
   return list_entry (list_pop_front (&ready_list), struct thread, elem);
@@ -695,8 +702,11 @@ allocate_tid (void)
 
 
 /** list_less_func for comparing thread priorities. */
-bool list_thread_greater (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
-  return list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority;
+bool list_thread_greater (const struct list_elem *a, 
+                          const struct list_elem *b, void *aux UNUSED)
+{
+  return list_entry (a, struct thread, elem)->priority > 
+         list_entry (b, struct thread, elem)->priority;
 }
 
 /** Offset of `stack' member within `struct thread'.

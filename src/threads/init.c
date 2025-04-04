@@ -151,7 +151,6 @@ pintos_init (void)
       {
         // buffer only stores the first 100 characters
         // this is to prevent buffer overflow
-        // TODO: if in the future we want to support longer input, this should be changed
         if (size < 100) 
         {
           input[size++] = c;
@@ -174,9 +173,7 @@ pintos_init (void)
         size = 0;
       }
     }
-    
     free(input);
-    
   }
 
   /* Finish up. */
@@ -329,6 +326,10 @@ static void
 run_task (char **argv)
 {
   const char *task = argv[1];
+
+  /* argv[0]: run 
+     argv[1]: echo PKUOS
+  */
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG

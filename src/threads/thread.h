@@ -84,27 +84,28 @@ typedef int tid_t;
 struct thread
   {
     /* Owned by thread.c. */
-    tid_t tid;                          /**< Thread identifier. */
-    enum thread_status status;          /**< Thread state. */
-    char name[16];                      /**< Name (for debugging purposes). */
-    uint8_t *stack;                     /**< Saved stack pointer. */
-    int priority;                       /**< Priority. */
-    int64_t sleep_ticks;                /**< Number of ticks to sleep. */
-    struct list_elem allelem;           /**< List element for all threads list. */
+    tid_t tid;                        /**< Thread identifier. */
+    enum thread_status status;        /**< Thread state. */
+    char name[16];                    /**< Name (for debugging purposes). */
+    uint8_t *stack;                   /**< Saved stack pointer. */
+    int priority;                     /**< Priority. */
+    int64_t sleep_ticks;              /**< Number of ticks to sleep. */
+    struct list_elem allelem;         /**< List element for all 
+                                           threads list. */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /**< List element. */
+    struct list_elem elem;            /**< List element. */
 
     /* Used by sleep_list */
-    struct list_elem sleep_elem;        /**< List element for sleep list. */
+    struct list_elem sleep_elem;      /**< List element for sleep list. */
 
-    int nice;                           /**< Nice value. */
-    fp recent_cpu;                     /**< Recent CPU. */
+    int nice;                         /**< Nice value. */
+    fp recent_cpu;                   /**< Recent CPU. */
 
-    int base_priority;                  /**< Base priority. */
-    int donated_priority;               /**< Donated priority. */
-    struct lock *waiting_lock;          /**< Lock waiting for. */
-    struct list locks;                  /**< List of locks held. */
+    int base_priority;                /**< Base priority. */
+    int donated_priority;             /**< Donated priority. */
+    struct lock *waiting_lock;        /**< Lock waiting for. */
+    struct list locks;                /**< List of locks held. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -150,7 +151,8 @@ void thread_set_priority (int);
 int64_t thread_get_sleep_ticks (void);
 void thread_set_sleep_ticks (int64_t ticks);
 
-bool list_thread_greater (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool list_thread_greater (const struct list_elem *a, 
+                          const struct list_elem *b, void *aux UNUSED);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
