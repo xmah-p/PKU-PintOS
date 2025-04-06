@@ -23,11 +23,13 @@
 #include "threads/pte.h"
 #include "threads/thread.h"
 #ifdef USERPROG
+#include "threads/synch.h"
 #include "userprog/process.h"
 #include "userprog/exception.h"
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
+#include "filesys/filesys.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -103,6 +105,7 @@ pintos_init (void)
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
+  lock_init (&filesys_lock);
 #endif
 
   /* Initialize interrupt handlers. */

@@ -264,6 +264,9 @@ thread_create (const char *name, int priority,
     }
   }
   tid = t->tid = allocate_tid ();
+  #ifdef USERPROG
+  t->proc_info = (struct proc_info *) aux;
+  #endif
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);

@@ -110,6 +110,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /**< Page directory. */
+    struct proc_info *proc_info ;       /**< Process info. */
 #endif
 
    /* NOTE: Always leave this at the end of the struct. */

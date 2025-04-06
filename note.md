@@ -23,7 +23,7 @@ cd pintos/src/threads/build
 pintos --gdb --   # debug
 
 make tests/threads/alarm-priority.result   
-rm tests/threads/alarm-priority.output; make tests/threads/alarm-priority.result # test a certain case
+rm tests/userprog/sc-boundary-3.output; make tests/userprog/sc-boundary-3.result # test a certain case
 
 make check > ~/pintos/check.txt  # run all tests
 make grade > ~/pintos/grade.txt  # run all tests and grade
@@ -263,7 +263,8 @@ debug：开一个新终端
 ```bash
 docker exec -it pintos bash
 
-cd pintos/src/userprog/build; pintos-gdb kernel.o
+cd pintos/src/userprog/build; 
+pintos-gdb kernel.o
 
 debugpintos
 ```
@@ -284,11 +285,12 @@ pintos -- -f -q    # 格式化磁盘
 pintos -p ../../examples/echo -a echo -- -q   # 将 echo 程序添加到磁盘
 pintos -- -q run 'echo PKUOS'    # 运行 echo 程序，输出 PKUOS
 
-# 究极四合一版
-pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
+# 究极五合一版
+clear; make; pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
 
-pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
+clear; make; pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
 
+rm tests/userprog/create-normal.output; make tests/userprog/create-normal.result # test a certain case
 
 -f -q extract run 'echo PKUOS'
 

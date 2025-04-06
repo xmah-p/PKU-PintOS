@@ -31,4 +31,8 @@ enum
     SYS_INUMBER                 /**< Returns the inode number for a fd. */
   };
 
+/** The minimum and maximum system call numbers. */
+#define SYS_MIN SYS_HALT
+#define SYS_MAX SYS_INUMBER
+
 #endif /**< lib/syscall-nr.h */
