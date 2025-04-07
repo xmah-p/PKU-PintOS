@@ -16,25 +16,7 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 
-static struct list global_open_file_list;    /* Protected by filesys_lock. */
-
 static void syscall_handler (struct intr_frame *);
-
-static void 
-free_global_open_file_entry (struct global_open_file_entry *entry)
-{
-  if (entry != NULL)
-    {
-      entry->ref_count--;
-      if (entry->ref_count == 0)
-        {
-          list_remove (&entry->elem);
-          file_close (entry->file);
-          free ((char *) entry->name);
-          free (entry);
-        }
-    }
-}
 
 /* Checks if addr is a valid user address. */
 static bool 
@@ -109,11 +91,13 @@ syscall_remove (const char *file)
   return success;
 }
 
-static int 
-syscall_open (const char *file) 
+
+/* [TODO] readability */
+static int
+syscall_open (const char *file)
 {
   if (!is_valid_nbyte_ptr (file, 2))
-      syscall_exit (-1);
+    syscall_exit (-1);
 
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
@@ -121,84 +105,31 @@ syscall_open (const char *file)
   lock_acquire (&proc_info->lock);
   lock_acquire (&filesys_lock);
 
-  struct global_open_file_entry *entry = NULL;
-  struct list_elem *e;
-  for (e = list_begin (&global_open_file_list); 
-       e != list_end (&global_open_file_list);
-       e = list_next (e))
-    {
-      struct global_open_file_entry *tmp 
-             = list_entry (e, struct global_open_file_entry, elem);
-      if (strcmp (tmp->name, file) == 0)
-        {
-          entry = tmp;
-          break;
-        }
-    }
-  
-  struct file *new_file = NULL;
-  if (entry != NULL)
-    {
-      new_file = file_reopen (entry->file);
-      if (new_file == NULL)
-        {
-          lock_release (&filesys_lock);
-          lock_release (&proc_info->lock);
-          return -1;
-        }
-      entry->ref_count++;
-    }
-  else
+  struct file *file_ptr = filesys_open (file);
+  if (file_ptr == NULL)
   {
-    struct file *file_ptr = filesys_open (file);
-    if (file_ptr == NULL) 
-      {
-        lock_release (&filesys_lock);
-        lock_release (&proc_info->lock);
-        return -1;
-      }
-
-    entry = malloc (sizeof (struct global_open_file_entry));
-    if (entry == NULL)
-      {
-        file_close (file_ptr);
-        lock_release (&filesys_lock);
-        lock_release (&proc_info->lock);
-        return -1;
-      }
-    entry->name = malloc (strlen (file) + 1);
-    if (entry->name == NULL)
-      {
-        free (entry);
-        file_close (file_ptr);
-        lock_release (&filesys_lock);
-        lock_release (&proc_info->lock);
-        return -1;
-      }
-    strlcpy ((char *) entry->name, file, strlen (file) + 1);
-    entry->file = file_ptr;
-    entry->ref_count = 1;
-    list_push_back (&global_open_file_list, &entry->elem);
-    new_file = file_ptr;
+    lock_release (&filesys_lock);
+    lock_release (&proc_info->lock);
+    return -1;
   }
 
   int fd = -1;
   for (int i = STDOUT_FILENO + 1; i < MAX_FD; i++)
       if (proc_info->fd_table[i] == NULL)
-        {
-          fd = i;
-          break;
-        }
+      {
+        fd = i;
+        break;
+      }
 
   if (fd == -1)
-    {
-      free_global_open_file_entry (entry);
-      lock_release (&filesys_lock);
-      lock_release (&proc_info->lock);
-      return -1;
-    }
-  
-  proc_info->fd_table[fd] = new_file;
+  {
+    file_close (file_ptr);
+    lock_release (&filesys_lock);
+    lock_release (&proc_info->lock);
+    return -1;
+  }
+
+  proc_info->fd_table[fd] = file_ptr;
 
   lock_release (&filesys_lock);
   lock_release (&proc_info->lock);
@@ -298,21 +229,8 @@ syscall_close (int fd)
   lock_acquire (&filesys_lock);
 
   proc_info->fd_table[fd] = NULL;
-
-  struct list_elem *e;
-  for (e = list_begin (&global_open_file_list); 
-       e != list_end (&global_open_file_list);
-       e = list_next (e))
-    {
-      struct global_open_file_entry *entry 
-             = list_entry (e, struct global_open_file_entry, elem);
-      if (entry->file == file)
-        {
-          free_global_open_file_entry (entry);
-          break;
-        }
-    }
-
+  file_close (file);
+    
   lock_release (&filesys_lock);
   lock_release (&proc_info->lock);
   return;
@@ -323,7 +241,6 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  list_init (&global_open_file_list);
 }
 
 static int syscall_argc[] = {

@@ -33,6 +33,7 @@ free_proc_info (struct proc_info *proc_info)
 {
   palloc_free_page (proc_info->argv[0]);
   palloc_free_page (proc_info->argv);
+  
   free (proc_info);
 }
 
@@ -314,6 +315,12 @@ process_exit (int status)
   executable = proc_info->executable;
   lock_acquire (&filesys_lock);
   file_close (executable);
+  for (int i = 2; i < MAX_FD; i++)
+    {
+      if (proc_info->fd_table[i] == NULL) continue;    
+      file_close (proc_info->fd_table[i]);
+      proc_info->fd_table[i] = NULL;
+    }
   lock_release (&filesys_lock);
 
   proc_info->exit_status = status;

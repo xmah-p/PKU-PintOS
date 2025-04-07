@@ -5,7 +5,7 @@
 #include "threads/synch.h"
 #include "filesys/file.h"
 
-#define MAX_FD 128 /**< Maximum number of file descriptors. */
+#define MAX_FD 131 /**< Maximum number of file descriptors. */
 
 struct proc_info
   { 

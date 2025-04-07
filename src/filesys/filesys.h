@@ -21,14 +21,4 @@ bool filesys_remove (const char *name);
 /** Lab 2 */
 struct lock filesys_lock;
 
-/* Entry in the global open file list, used to speed up opening files. */
-struct global_open_file_entry
-  {
-    const char *name; /**< File name. */
-    struct file *file; /**< File pointer. */
-    struct list_elem elem; /**< List element. */
-    int ref_count; /**< Reference count. */
-  };
-
-
 #endif /**< filesys/filesys.h */
