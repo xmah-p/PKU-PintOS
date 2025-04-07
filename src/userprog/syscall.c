@@ -10,7 +10,6 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "devices/input.h"
-#include "threads/malloc.h"
 #include "lib/string.h"
 
 #define STDIN_FILENO 0

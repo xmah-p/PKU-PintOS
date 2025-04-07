@@ -502,3 +502,167 @@ Exception: 19 page faults
 Powering off...
 
 ExecutExecution of 'create-bad-ptr' complete.  随机失败
+
+
+Kernel panic in run: PANIC at ../../userprog/exception.c:101 in kill(): Kernel bug - unexpected interrupt in kernel
+内核读了一个空地址 not presenting 解决啦！！
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+DETAILS OF tests/userprog/open-normal FAILURE:
+
+Test output failed to match any acceptable form.
+
+Acceptable output:
+  (open-normal) begin
+  (open-normal) end
+  open-normal: exit(0)
+Differences in `diff -u' format:
+- (open-normal) begin
++ ((open-normal) begin
+  (open-normal) end
+  open-normal: exit(0)
+
+OUTPUT FROM tests/userprog/open-normal:
+
+Copying tests/userprog/open-normal to scratch partition...
+Copying ../../tests/userprog/sample.txt to scratch partition...
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/1gwLJWU_9b.dsk -m 4 -net none -nographic -monitor null
+Pintos hda1
+Loading............
+Kernel command line: -q -f extract run open-normal
+Pintos booting with 3,968 kB RAM...
+367 pages available in kernel pool.
+367 pages available in user pool.
+Calibrating timer...  104,755,200 loops/s.
+hda: 5,040 sectors (2 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 207 sectors (103 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 74 sectors (37 kB), Pintos scratch (22)
+filesys: using hda2
+scratch: using hda3
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'open-normal' into the file system...
+Putting 'sample.txt' into the file system...
+Erasing ustar archive...
+Executing 'open-normal':
+((open-normal) begin
+(open-normal) end
+open-normal: exit(0)
+Execution of 'open-normal' complete.
+Timer: 58 ticks
+Thread: 35 idle ticks, 22 kernel ticks, 1 user ticks
+hda2 (filesys): 94 reads, 154 writes
+hda3 (scratch): 73 reads, 2 writes
+Console: 944 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+DETAILS OF tests/filesys/base/syn-read FAILURE:
+
+Kernel panic in run: PANIC at ../../userprog/exception.c:101 in kill(): Kernel bug - unexpected interrupt in kernel
+Call stack: 0xc002a30b 0xc002e16d 0xc002e25f 0xc002232a 0xc002254a 0xc0023455 0xc00235ca 0xc002cd31 0xc002e36c 0xc002e9b5 0xc002232a 0xc002254a 0x804a6fa 0x8048465 0x804819c 0x804892f 0x8048960
+Translation of call stack:
+In kernel.o:
+0xc002a30b: debug_panic (.../../lib/kernel/debug.c:38)
+0xc002e16d: kill (.../userprog/exception.c:107)
+0xc002e25f: page_fault (....c:160 (discriminator 12))
+0xc002232a: intr_handler (..../threads/interrupt.c:367)
+0xc002254a: intr_entry (threads/intr-stubs.S:38)
+0xc0023455: update_thread_priority (...../../threads/synch.c:217)
+0xc00235ca: lock_acquire (...h.c:260 (discriminator 2))
+0xc002cd31: process_wait (...../userprog/process.c:265)
+0xc002e36c: syscall_wait (.../../userprog/syscall.c:65)
+0xc002e9b5: syscall_handler (...../userprog/syscall.c:290)
+0xc002232a: intr_handler (..../threads/interrupt.c:367)
+0xc002254a: intr_entry (threads/intr-stubs.S:38)
+In tests/filesys/base/syn-read:
+0x0804a6fa: wait (.../../lib/user/syscall.c:87)
+0x08048465: wait_children (...ild/../../tests/lib.c:100)
+0x0804819c: test_main (...ilesys/base/syn-read.c:30)
+0x0804892f: main (...ild/../../tests/main.c:13)
+0x08048960: _start (.../../../lib/user/entry.c:9)
+Translations of user virtual addresses above are based on a guess at
+the binary to use.  If this guess is incorrect, then those
+translations will be misleading.
+
+OUTPUT FROM tests/filesys/base/syn-read:
+
+Copying tests/filesys/base/syn-read to scratch partition...
+Copying tests/filesys/base/child-syn-read to scratch partition...
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/S9HlzD2QtJ.dsk -m 4 -net none -nographic -monitor null
+Pintos hda1
+Loading............
+Kernel command line: -q -f extract run syn-read
+Pintos booting with 3,968 kB RAM...
+367 pages available in kernel pool.
+367 pages available in user pool.
+Calibrating timer...  104,755,200 loops/s.
+hda: 5,040 sectors (2 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 207 sectors (103 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 155 sectors (77 kB), Pintos scratch (22)
+filesys: using hda2
+scratch: using hda3
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'syn-read' into the file system...
+Putting 'child-syn-read' into the file system...
+Erasing ustar archive...
+Executing 'syn-read':
+(syn-read) begin
+(syn-read) create "data"
+(syn-read) open "data"
+(syn-read) write "data"
+(syn-read) close "data"
+(syn-read) exec child 1 of 10: "child-syn-read 0"
+(syn-read) exec child 2 of 10: "child-syn-read 1"
+(syn-read) exec child 3 of 10: "child-syn-read 2"
+(syn-read) exec child 4 of 10: "child-syn-read 3"
+(syn-read) exec child 5 of 10: "child-syn-read 4"
+(syn-read) exec child 6 of 10: "child-syn-read 5"
+(syn-read) exec child 7 of 10: "child-syn-read 6"
+(syn-read) exec child 8 of 10: "child-syn-read 7"
+(syn-read) exec child 9 of 10: "child-syn-read 8"
+(syn-read) exec child 10 of 10: "child-syn-read 9"
+child-syn-read: exit(1)
+child-syn-read: exit(0)
+(syn-read) wait for child 1 of 10 returned 0 (expected 0)
+(syn-read) wait for child 2 of 10 returned 1 (expected 1)
+child-syn-read: exit(2)
+(syn-read) wait for child 3 of 10 returned 2 (expected 2)
+child-syn-read: exit(3)
+(syn-read) wait for child 4 of 10 returned 3 (expected 3)
+child-syn-read: exit(4)
+(syn-read) wait for child 5 of 10 returned 4 (expected 4)
+child-syn-read: exit(5)
+(syn-read) wait for child 5 of 10 returned 4 (expected 4)
+child-syn-read: exit(5)
+child-syn-read: exit(5)
+(syn-read) wait for child 6 of 10 returned 5 (expected 5)
+Page fault at 0x1c: not present error reading page in kernel context.
+Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0023455
+child-syn-read: exit(7)
+ cr2=0000001c error=00000000
+ eax=00000000 ebx=00000000 ecx=0000001f edx=0000001f
+ esi=00000000 edi=00000000 esp=c010bee4 ebp=c010bea4
+ cs=0008 ds=0010 es=0010 ss=35ca
+Kernel PANIC at ../../userprog/exception.c:101 in kill(): Kernel bug - unexpected interrupt in kernel
+Call stack: 0xc002a30b 0xc002e16d 0xc002e25f 0xc002232a 0xc002254a 0xc0023455 0xc00235ca 0xc002cd31 0xc002e36c 0xc002e9b5 0xc002232a 0xc002254a 0x804a6fa 0x8048465 0x804819c 0x804892f 0x8048960.
+The `backtrace' program can make call stacks useful.
+Read "Backtraces" in the "Debugging Tools" chapter
+of the Pintos documentation for more information.
+Timer: 357 ticks
+Thread: 168 idle ticks, 27 kernel ticks, 162 user ticks
+hda2 (filesys): 10767 reads, 324 writes
+hda3 (scratch): 154 reads, 2 writes
+Console: 2731 characters output
+Keyboard: 0 keys pressed
+Exception: 1 page faults
+Powering off...

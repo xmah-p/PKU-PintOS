@@ -31,9 +31,11 @@ static bool load (struct proc_info *proc_info,
 static void 
 free_proc_info (struct proc_info *proc_info)
 {
-  palloc_free_page (proc_info->argv[0]);
-  palloc_free_page (proc_info->argv);
-  
+  if (proc_info->argv != NULL) {
+    palloc_free_page (proc_info->argv[0]);
+    palloc_free_page (proc_info->argv);
+  }
+
   free (proc_info);
 }
 
@@ -44,6 +46,7 @@ void
 free_proc_info_refcnt (struct proc_info *proc_info)
 {
   lock_acquire (&proc_info->lock);
+  proc_info->ref_count--;
   if (proc_info->ref_count == 0)
     {
       lock_release (&proc_info->lock);
@@ -51,7 +54,6 @@ free_proc_info_refcnt (struct proc_info *proc_info)
     }
   else if (proc_info->ref_count > 0)
     {
-      proc_info->ref_count--;
       lock_release (&proc_info->lock);
     }
   else
@@ -118,7 +120,9 @@ process_execute (const char *commandline)
   /* Parse cmdline into argv. */ 
   argv = palloc_get_page (0);
   if (argv == NULL)
-    return TID_ERROR;
+    {
+      return TID_ERROR;
+    }
 
   cmdline_copy = palloc_get_page (0);
   if (cmdline_copy == NULL)
@@ -317,7 +321,7 @@ process_exit (int status)
   file_close (executable);
   for (int i = 2; i < MAX_FD; i++)
     {
-      if (proc_info->fd_table[i] == NULL) continue;    
+      // if (proc_info->fd_table[i] == NULL) continue;    
       file_close (proc_info->fd_table[i]);
       proc_info->fd_table[i] = NULL;
     }
@@ -444,7 +448,6 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
   file = filesys_open (prog_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", prog_name);
       lock_release (&filesys_lock);
       return false;
     }
@@ -624,8 +627,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
+      if (kpage == NULL) {
         return false;
+      }
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
@@ -660,7 +664,10 @@ setup_stack (void **esp, char **argv)
   int argc = 0;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage == NULL) return false; 
+  if (kpage == NULL) 
+  {
+    return false; 
+  }
     
   success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
   if (!success) 
