@@ -25,6 +25,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (char **argv, void (**eip) (void), void **esp);
 
+/* Free the proc_info structure. This is a helper function for
+   free_proc_info_refcnt and should not be called directly. */
 static void 
 free_proc_info (struct proc_info *proc_info)
 {
@@ -33,12 +35,12 @@ free_proc_info (struct proc_info *proc_info)
   free (proc_info);
 }
 
+/* Free the proc_info structure if its reference count is 0.
+   Otherwise, decrement the reference count. This function is
+   thread-safe. */
 void 
 free_proc_info_refcnt (struct proc_info *proc_info)
 {
-  #ifdef DEBUG
-  printf ("free_proc_info_refcnt: %p\n", proc_info);
-  #endif
   lock_acquire (&proc_info->lock);
   if (proc_info->ref_count == 0)
     {
@@ -61,15 +63,36 @@ static void
 init_proc_info (struct proc_info *proc_info, char **argv)
 {
   proc_info->argv = argv;
-  proc_info->exit_status = 0;
+  proc_info->exit_status = -1;
   proc_info->exited = false;
   proc_info->waited = false;
+  proc_info->loaded = false;
   proc_info->parent = thread_current ();
+  list_init (&proc_info->child_list);
   lock_init (&proc_info->lock);
   sema_init (&proc_info->wait_sema, 0);
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
   proc_info->ref_count = 1;
+}
+
+/* Called in init.c to run the first user process. */
+void 
+run_first_process (const char *commandline)
+{
+  struct proc_info *proc_info;
+  struct thread *cur = thread_current ();
+
+  /* Initialize proc_info structure. */
+  proc_info = malloc (sizeof (struct proc_info));
+  if (proc_info == NULL)
+    PANIC ("run_first_process: malloc failed");
+  init_proc_info (proc_info, NULL);
+
+  cur->proc_info = proc_info;
+  process_wait (process_execute (commandline));
+
+  free_proc_info_refcnt (proc_info);    /* Free proc_info */
 }
 
 
@@ -86,7 +109,9 @@ process_execute (const char *commandline)
   char *save_ptr;
   char *token;
   tid_t tid;
-  struct proc_info *proc_info;
+  struct proc_info *child_proc_info;
+  struct thread *cur = thread_current ();
+  struct proc_info *proc_info = cur->proc_info;
 
   /* Parse cmdline into argv. */ 
   argv = palloc_get_page (0);
@@ -115,25 +140,39 @@ process_execute (const char *commandline)
   argv[argc] = NULL;
 
   /* Initialize proc_info structure. */
-  proc_info = malloc (sizeof (struct proc_info));
-  if (proc_info == NULL)
+  child_proc_info = malloc (sizeof (struct proc_info));
+  if (child_proc_info == NULL)
     {
       palloc_free_page (argv);
       palloc_free_page (cmdline_copy);
       return TID_ERROR;
     }
-  init_proc_info (proc_info, argv);
-
-  /* TODO:
-   the parent process cannot return from the exec until it knows 
-   whether the child process successfully loaded its executable. 
-   You must use appropriate synchronization to ensure this.*/
+  init_proc_info (child_proc_info, argv);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (argv[0], PRI_DEFAULT, start_process, proc_info);
+  tid = thread_create (argv[0], PRI_DEFAULT, start_process, child_proc_info);
   if (tid == TID_ERROR) 
     {
-      free_proc_info(proc_info);
+      free_proc_info_refcnt (child_proc_info);
+      return TID_ERROR;
+    }
+  child_proc_info->tid = tid;
+  /* Add child_proc_info to the parent's child list. */
+  lock_acquire (&proc_info->lock);
+  list_push_back (&proc_info->child_list, &child_proc_info->child_elem);
+  lock_release (&proc_info->lock);
+
+  /* Wait for the child to finish loading. */
+  sema_down (&child_proc_info->wait_sema);
+
+  /* If load failed, free child_proc_info and return TID_ERROR. */
+  if (!child_proc_info->loaded)
+    {
+      lock_acquire (&proc_info->lock);
+      list_remove (&child_proc_info->child_elem);
+      lock_release (&proc_info->lock);
+
+      free_proc_info_refcnt (child_proc_info);
       return TID_ERROR;
     }
 
@@ -150,6 +189,8 @@ start_process (void *proc_info_)
   bool success;
   char **argv = proc_info->argv;
 
+  proc_info->ref_count++;    /* Increment reference count. */
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -160,9 +201,13 @@ start_process (void *proc_info_)
   /* If load failed, quit. */
   if (!success) 
     {
-      free_proc_info(proc_info);
+      proc_info->loaded = false;
+      free_proc_info_refcnt (proc_info);
+      sema_up (&proc_info->wait_sema);    /* Notify parent thread */
       thread_exit ();
     }
+  proc_info->loaded = true;
+  sema_up (&proc_info->wait_sema);    /* Notify parent thread */
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -184,12 +229,49 @@ start_process (void *proc_info_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  /* busy waits */
-  timer_sleep (10);
-    
-  return -1;
+  struct thread *cur = thread_current ();
+  struct proc_info *proc_info = cur->proc_info;
+  struct list_elem *e;
+  struct proc_info *child_proc_info = NULL;
+  int exit_status = -1;
+  bool found = false;
+
+  /* Check if child_tid is a valid child. */
+  lock_acquire (&proc_info->lock);
+  for (e = list_begin (&proc_info->child_list); e != list_end (&proc_info->child_list);
+       e = list_next (e))
+    {
+      child_proc_info = list_entry (e, struct proc_info, child_elem);
+      if (child_proc_info->tid == child_tid)
+        {
+          found = true;
+          break;
+        }
+    }
+  lock_release (&proc_info->lock);
+
+  if (!found) return -1;    /* Not a child of the current process. */
+
+  lock_acquire (&child_proc_info->lock);
+  if (child_proc_info->waited) return -1;    /* Already waited on. */
+  child_proc_info->waited = true;
+  lock_release (&child_proc_info->lock);
+
+  /* Wait for child to exit. */
+  sema_down (&child_proc_info->wait_sema);
+
+  lock_acquire (&child_proc_info->lock);
+  /* If child has exited, its proc_info's exit_status will be set.
+   * Otherwise, it is terminated by the kernel, then its proc_info's
+   * exit_status should be -1. */
+  exit_status = child_proc_info->exit_status;
+  /* Free child_proc_info. */
+  list_remove (&child_proc_info->child_elem);
+  lock_release (&child_proc_info->lock);
+  free_proc_info_refcnt (child_proc_info);
+  return exit_status;
 }
 
 /** Free the current process's resources. */
@@ -324,12 +406,16 @@ load (char **argv, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  lock_acquire (&filesys_lock);
   file = filesys_open (prog_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", prog_name);
       goto done; 
     }
+
+  /* Deny writes to the executable file. */
+  file_deny_write (file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -415,6 +501,7 @@ load (char **argv, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  lock_release (&filesys_lock);
   return success;
 }
 

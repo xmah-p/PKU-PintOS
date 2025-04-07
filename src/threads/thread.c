@@ -404,6 +404,19 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
+struct thread *
+get_thread_by_tid (tid_t tid) 
+{
+  struct list_elem *e;
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e)) 
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == tid) return t;
+    }
+  return NULL;
+}
+
 /** Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void

@@ -48,20 +48,30 @@ syscall_exit (int status)
 {
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
-  char *proc_name = proc_info->argv[0];
-  printf("%s: exit(%d)\n", proc_name, status);
+  char *prog_name;
+  struct file *executable;
 
   lock_acquire (&proc_info->lock);
+  prog_name = proc_info->argv[0];
+  printf("%s: exit(%d)\n", prog_name, status);
+
+  /* Allow writes to the executable file. */
+  lock_acquire (&filesys_lock);
+  executable = filesys_open (prog_name);
+  if (executable != NULL)
+    {
+      file_allow_write (executable);
+      file_close (executable);
+    }
+  lock_release (&filesys_lock);
+
   proc_info->exit_status = status;
   proc_info->exited = true;
   lock_release (&proc_info->lock);
 
   sema_up (&proc_info->wait_sema);    /* Notify parent thread */
 
-  process_exit();                /* Clean up resources */
-
   free_proc_info_refcnt (proc_info);    /* Free proc_info */
-  
   thread_exit ();               /* Exit the thread */
 }
 
@@ -69,8 +79,7 @@ syscall_exit (int status)
 static tid_t 
 syscall_exec (const char *cmd_line) 
 {
-  /* strlen 安全吗？ */
-  if (!is_valid_addr (cmd_line))
+  if (!is_valid_nbyte_ptr (cmd_line, 2))
       syscall_exit (-1);
   return process_execute (cmd_line);
 }
@@ -85,7 +94,7 @@ syscall_wait (tid_t tid)
 static bool 
 syscall_create (const char *file, unsigned initial_size) 
 {
-  if (!is_valid_addr (file))
+  if (!is_valid_nbyte_ptr (file, 2))
       syscall_exit (-1);
 
   lock_acquire (&filesys_lock);
@@ -97,7 +106,7 @@ syscall_create (const char *file, unsigned initial_size)
 static bool 
 syscall_remove (const char *file) 
 {
-  if (!is_valid_addr (file))
+  if (!is_valid_nbyte_ptr (file, 2))
       syscall_exit (-1);
 
   lock_acquire (&filesys_lock);
@@ -109,7 +118,7 @@ syscall_remove (const char *file)
 static int 
 syscall_open (const char *file) 
 {
-  if (!is_valid_addr (file))
+  if (!is_valid_nbyte_ptr (file, 2))
       syscall_exit (-1);
 
   struct thread *cur = thread_current ();

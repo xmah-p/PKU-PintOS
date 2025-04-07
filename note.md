@@ -170,60 +170,10 @@ void update_donated_priority(struct thread *t)
 
 # Lab 2
 
-需要关注的文件：
-
-```bash
-src/userprog/:
-
-process.h, .c
-pagedir.h, .c
-syscall.h, .c
-exception.h, .c
-gdt.h, .c
-tss.h, .c
-
-src/filesys/:
-filesys.h
-file.h
-```
 
 文件系统没有内部同步，并发的访问会干扰彼此。文件大小自创建时就固定了，不能扩展。单文件的数据连续存储。没有子目录。文件名至多 14 个字符。
 
 类 Unix 的延迟删除文件
-
-Incidentally, these commands work by passing special commands extract and append on the kernel's command line and copying to and from a special simulated "scratch" partition. If you're very curious, you can look at the pintos script as well as filesys/fsutil.c to learn the implementation details.
-
-```bash
-pintos-mkdisk filesys.dsk --filesys-size=2
-pintos -- -f -q
-pintos -p ../../examples/echo -a echo -- -q
-pintos -- -q run 'echo PKUOS'
-
-pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
-```
-
-
-You might want to create a clean reference file system disk and copy that over whenever you trash your filesys.dsk beyond a useful state, which may happen occasionally while debugging.
-
-用户栈大小固定，代码段从用户虚拟地址的 0x08048000 开始。
-
-The linker sets the layout of a user program in memory, as directed by a "linker script" that tells it the names and locations of the various program segments. You can learn more about linker scripts by reading the "Scripts" chapter in the linker manual, accessible via info ld.
-
-To view the layout of a particular executable, run objdump (80x86) or i386-elf-objdump (SPARC) with the -p option.
-
-As shown above, your code should start the stack at the very top of the user virtual address space, in the page just below virtual address PHYS_BASE (defined in threads/vaddr.h).
-
-顺序：
-
-1. 传参
-2. `halt`
-3. `exit`
-4. `write`
-5. 把 `process_wait` 改成死循环
-6. 剩余工作
-7. 正确的 `process_wait`
-
-如何安排 `argv[]` 的元素顺序？如何避免栈溢出？
 
 防止大量错误处理代码妨碍主逻辑的可读性。错误处理时保证锁、buffer 等资源释放。
 
@@ -240,58 +190,39 @@ ensure proper synchronization and avoid race conditions when P
 
 ```bash
 docker run -it --rm --name pintos --mount type=bind,source=D:/wksp/pintos,target=/home/PKUOS/pintos pkuflyingpig/pintos bash
+# 或者
+docker exec -it pintos bash
 
 cd pintos/src/userprog/; make
 
 cd build;
 
-# 或者
-cd pintos/src/userprog/build
+# debug 在新终端
+pintos-gdb kernel.o  
+debugpintos
+# 如果这一步网络不通，ctrl+a+x 第一个终端的 qemu
+# ctrl+leftarrow 会卡死
 
-pintos --gdb --   # debug
-
+# 测试
 make tests/userprog/alarm-priority.result   
 rm tests/userprog/alarm-priority.output; make tests/userprog/alarm-priority.result # test a certain case
 
 make check > ~/pintos/check.txt  # run all tests
 make grade > ~/pintos/grade.txt  # run all tests and grade
 
-```
-
-debug：开一个新终端
-
-```bash
-docker exec -it pintos bash
-
-cd pintos/src/userprog/build; 
-pintos-gdb kernel.o
-
-debugpintos
-```
-
-如果这一步网络不通，ctrl+a+x 第一个终端的 qemu
-
-b *0x7c00
-
-load_kernel
-b *0x7c7e    
-
-ctrl+leftarrow 卡死
-
-```bash
-# 在 pintos/src/userprog/build 目录下执行
-pintos-mkdisk filesys.dsk --filesys-size=2    # 创建磁盘
-pintos -- -f -q    # 格式化磁盘
-pintos -p ../../examples/echo -a echo -- -q   # 将 echo 程序添加到磁盘
-pintos -- -q run 'echo PKUOS'    # 运行 echo 程序，输出 PKUOS
-
 # 究极五合一版
 clear; make; pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
-
 clear; make; pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo PKUOS'
-
-rm tests/userprog/create-normal.output; make tests/userprog/create-normal.result # test a certain case
-
--f -q extract run 'echo PKUOS'
-
 ```
+
+修改 `proc_info->ref_count` 的地方：
+
+1. `process_execute`：创建新进程时，父进程调用 `init_proc_info` 将 `ref_count` 初始化为 1。如果创建线程失败，调用 `free_proc_info_refcnt` 释放 `proc_info`。
+2. 子进程执行 `start_process` 时 立即将 `ref_count` 加 1。
+3. 子进程加载失败，调用 `free_proc_info_refcnt`，然后 `sema_up`。回到父进程后又调用 `free_proc_info_refcnt`，此时 `proc_info` 被释放.
+4. 父进程调用 `process_wait` 时，调用 `free_proc_info_refcnt`。
+5. 子进程调用 `syscall_exit` 时，调用 `free_proc_info_refcnt`。
+
+`start_process` 里修改 `proc_info` 不用加锁，因为这时父进程已经在等待了。
+
+一定要记得每次测试通过之后 commit

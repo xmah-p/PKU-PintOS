@@ -139,7 +139,6 @@ pintos_init (void)
   } 
   else 
   {
-    // TODO: no command line passed to kernel. Run interactively 
     printf ("PKUOS> ");
     int buf_size = 512;
     char* input = malloc (buf_size);    // buffer to store user input
@@ -336,7 +335,7 @@ run_task (char **argv)
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
-  process_wait (process_execute (task));
+  run_first_process (task);
 #else
   run_test (task);
 #endif
