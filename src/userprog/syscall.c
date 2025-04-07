@@ -51,7 +51,7 @@ syscall_exit (int status)
 }
 
 
-static tid_t 
+static pid_t 
 syscall_exec (const char *cmd_line) 
 {
   if (!is_valid_nbyte_ptr (cmd_line, 2))
@@ -60,9 +60,9 @@ syscall_exec (const char *cmd_line)
 }
 
 static int 
-syscall_wait (tid_t tid) 
+syscall_wait (pid_t pid) 
 {
-  return process_wait (tid);
+  return process_wait (pid);
 }
 
 
@@ -91,7 +91,6 @@ syscall_remove (const char *file)
 }
 
 
-/* [TODO] readability */
 static int
 syscall_open (const char *file)
 {
@@ -305,7 +304,8 @@ syscall_handler (struct intr_frame *f)
         f->eax = syscall_read (esp[1], (void *) esp[2], (unsigned) esp[3]);
         break;
       case SYS_WRITE:
-        f->eax = syscall_write (esp[1], (const void *) esp[2], (unsigned) esp[3]);
+        f->eax = syscall_write 
+                 (esp[1], (const void *) esp[2], (unsigned) esp[3]);
         break;
       case SYS_SEEK:
         syscall_seek (esp[1], (unsigned) esp[2]);

@@ -19,7 +19,6 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "lib/string.h"
-#include "devices/timer.h"   /* DEBUGGING */
 #include "threads/synch.h"   
 
 static thread_func start_process NO_RETURN;
@@ -28,7 +27,7 @@ static bool load (struct proc_info *proc_info,
 
 /* Free the proc_info structure. This is a helper function for
    free_proc_info_refcnt and should not be called directly. */
-static void 
+inline static void 
 free_proc_info (struct proc_info *proc_info)
 {
   if (proc_info->argv != NULL) {
@@ -59,7 +58,7 @@ free_proc_info_refcnt (struct proc_info *proc_info)
   else
     {
       lock_release (&proc_info->lock);
-      printf ("free_proc_info_refcnt: ref_count < 0\n");
+      NOT_REACHED ();
     }
 }
 
@@ -103,8 +102,8 @@ run_first_process (const char *commandline)
 /** Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
-   thread id, or TID_ERROR if the thread cannot be created. */
-tid_t
+   thread id, or PID_ERROR if the thread cannot be created. */
+pid_t
 process_execute (const char *commandline) 
 {
   char **argv;
@@ -113,6 +112,7 @@ process_execute (const char *commandline)
   char *save_ptr;
   char *token;
   tid_t tid;
+  pid_t pid;
   struct proc_info *child_proc_info;
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
@@ -121,14 +121,14 @@ process_execute (const char *commandline)
   argv = palloc_get_page (0);
   if (argv == NULL)
     {
-      return TID_ERROR;
+      return PID_ERROR;
     }
 
   cmdline_copy = palloc_get_page (0);
   if (cmdline_copy == NULL)
     {
       palloc_free_page (argv);
-      return TID_ERROR;
+      return PID_ERROR;
     }
   strlcpy (cmdline_copy, commandline, PGSIZE);
 
@@ -139,7 +139,7 @@ process_execute (const char *commandline)
         {
           palloc_free_page (argv);
           palloc_free_page (cmdline_copy);
-          return TID_ERROR;
+          return PID_ERROR;
         }
       argv[argc++] = token;
     }
@@ -151,18 +151,20 @@ process_execute (const char *commandline)
     {
       palloc_free_page (argv);
       palloc_free_page (cmdline_copy);
-      return TID_ERROR;
+      return PID_ERROR;
     }
   init_proc_info (child_proc_info, argv);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (argv[0], PRI_DEFAULT, start_process, child_proc_info);
-  if (tid == TID_ERROR) 
+  pid = tid_to_pid (tid);
+
+  if (pid == PID_ERROR) 
     {
       free_proc_info_refcnt (child_proc_info);
-      return TID_ERROR;
+      return PID_ERROR;
     }
-  child_proc_info->tid = tid;
+  child_proc_info->pid = pid;
   /* Add child_proc_info to the parent's child list. */
   lock_acquire (&proc_info->lock);
   list_push_back (&proc_info->child_list, &child_proc_info->child_elem);
@@ -171,7 +173,7 @@ process_execute (const char *commandline)
   /* Wait for the child to finish loading. */
   sema_down (&child_proc_info->wait_sema);
 
-  /* If load failed, free child_proc_info and return TID_ERROR. */
+  /* If load failed, free child_proc_info and return PID_ERROR. */
   if (!child_proc_info->loaded)
     {
       lock_acquire (&proc_info->lock);
@@ -179,10 +181,10 @@ process_execute (const char *commandline)
       lock_release (&proc_info->lock);
 
       free_proc_info_refcnt (child_proc_info);
-      return TID_ERROR;
+      return PID_ERROR;
     }
 
-  return tid;
+  return pid;
 }
 
 /** A thread function that loads a user process and starts it
@@ -224,17 +226,14 @@ start_process (void *proc_info_)
   NOT_REACHED ();
 }
 
-/** Waits for thread TID to die and returns its exit status.  If
-   it was terminated by the kernel (i.e. killed due to an
-   exception), returns -1.  If TID is invalid or if it was not a
-   child of the calling process, or if process_wait() has already
-   been successfully called for the given TID, returns -1
-   immediately, without waiting.
-
-   This function will be implemented in problem 2-2.  For now, it
-   does nothing. */
+/** Waits for child process child_pid to die and returns its exit 
+   status.  If it was terminated by the kernel (i.e. killed due to 
+   an exception), returns -1.  If child_pid is invalid or if it was 
+   not a child of the calling process, or if process_wait() has already
+   been successfully called for the given child_pid, returns -1
+   immediately, without waiting.*/
 int
-process_wait (tid_t child_tid) 
+process_wait (pid_t child_pid) 
 {
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
@@ -243,13 +242,13 @@ process_wait (tid_t child_tid)
   int exit_status = -1;
   bool found = false;
 
-  /* Check if child_tid is a valid child. */
+  /* Check if child_pid is a valid child. */
   lock_acquire (&proc_info->lock);
   for (e = list_begin (&proc_info->child_list); e != list_end (&proc_info->child_list);
        e = list_next (e))
     {
       child_proc_info = list_entry (e, struct proc_info, child_elem);
-      if (child_proc_info->tid == child_tid)
+      if (child_proc_info->pid == child_pid)
         {
           found = true;
           break;
@@ -321,7 +320,6 @@ process_exit (int status)
   file_close (executable);
   for (int i = 2; i < MAX_FD; i++)
     {
-      // if (proc_info->fd_table[i] == NULL) continue;    
       file_close (proc_info->fd_table[i]);
       proc_info->fd_table[i] = NULL;
     }

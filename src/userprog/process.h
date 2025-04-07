@@ -7,10 +7,13 @@
 
 #define MAX_FD 131 /**< Maximum number of file descriptors. */
 
+typedef int pid_t; /**< Process ID type. */
+#define PID_ERROR ((pid_t) -1)          /**< Error value for pid_t. */
+
 struct proc_info
   { 
     char **argv;                   /**< Command line arguments. */
-    tid_t tid;                     /**< Thread ID. */
+    pid_t pid;                     /**< Thread ID. */
     int exit_status;               /**< Exit status. */
     struct file *executable;       /**< Executable file. */
     bool exited;                   /**< True if process has exited. */
@@ -25,9 +28,23 @@ struct proc_info
     int ref_count;                 /**< Reference count for process. */
   };
 
+/* pid-tid mapping */
+static inline 
+pid_t tid_to_pid (tid_t tid)
+{
+  return (pid_t) tid;
+}
+
+static inline 
+tid_t pid_to_tid (pid_t pid)
+{
+  return (tid_t) pid;
+}
+
 void run_first_process (const char *commandline);
-tid_t process_execute (const char *commandline);
-int process_wait (tid_t);
+
+pid_t process_execute (const char *commandline);
+int process_wait (pid_t);
 void free_pd (void);
 void process_exit (int status);
 void process_activate (void);
