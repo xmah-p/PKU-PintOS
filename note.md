@@ -204,8 +204,9 @@ debugpintos
 # ctrl+leftarrow 会卡死
 
 # 测试
-make tests/userprog/alarm-priority.result   
-rm tests/userprog/alarm-priority.output; make tests/userprog/alarm-priority.result # test a certain case
+rm tests/userprog/read-bad-ptr.output; make tests/userprog/read-bad-ptr.result
+
+code src/userprog/build/tests/userprog/syn-read.output
 
 make check > ~/pintos/check.txt  # run all tests
 make grade > ~/pintos/grade.txt  # run all tests and grade
@@ -226,3 +227,26 @@ clear; make; pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f 
 `start_process` 里修改 `proc_info` 不用加锁，因为这时父进程已经在等待了。
 
 一定要记得每次测试通过之后 commit
+
+`process_exit` 只会被 `thread_exit` 调用，而后者会被：
+
+- `pintos_init`
+- `kill`
+- `exit`
+- `start_process` if load failed
+- `syscall_exit`
+
+记得在 DESIGNDOC 写得分
+
+exec-bad-ptr
+
+write-bad-fd
+
+open-twice
+
+FAIL tests/userprog/no-vm/multi-oom
+
+FAIL tests/filesys/base/syn-read
+
+FAIL tests/filesys/base/lg-random
+[0mRun started 'lg-random' but it never finished

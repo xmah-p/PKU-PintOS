@@ -10,11 +10,31 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "devices/input.h"
+#include "threads/malloc.h"
+#include "lib/string.h"
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 
+static struct list global_open_file_list;    /* Protected by filesys_lock. */
+
 static void syscall_handler (struct intr_frame *);
+
+static void 
+free_global_open_file_entry (struct global_open_file_entry *entry)
+{
+  if (entry != NULL)
+    {
+      entry->ref_count--;
+      if (entry->ref_count == 0)
+        {
+          list_remove (&entry->elem);
+          file_close (entry->file);
+          free ((char *) entry->name);
+          free (entry);
+        }
+    }
+}
 
 /* Checks if addr is a valid user address. */
 static bool 
@@ -46,29 +66,7 @@ syscall_halt (void)
 static void 
 syscall_exit (int status) 
 {
-  struct thread *cur = thread_current ();
-  struct proc_info *proc_info = cur->proc_info;
-  char *prog_name;
-  struct file *executable;
-
-  lock_acquire (&proc_info->lock);
-  prog_name = proc_info->argv[0];
-  printf("%s: exit(%d)\n", prog_name, status);
-
-  /* Allow writes to the executable file. */
-  executable = proc_info->executable;
-  lock_acquire (&filesys_lock);
-  file_close (executable);
-  lock_release (&filesys_lock);
-
-  proc_info->exit_status = status;
-  proc_info->exited = true;
-  lock_release (&proc_info->lock);
-
-  sema_up (&proc_info->wait_sema);    /* Notify parent thread */
-
-  free_proc_info_refcnt (proc_info);    /* Free proc_info */
-  thread_exit ();               /* Exit the thread */
+  process_exit (status);
 }
 
 
@@ -123,14 +121,67 @@ syscall_open (const char *file)
   lock_acquire (&proc_info->lock);
   lock_acquire (&filesys_lock);
 
-  struct file *file_ptr = filesys_open (file);
-  if (file_ptr == NULL) 
+  struct global_open_file_entry *entry = NULL;
+  struct list_elem *e;
+  for (e = list_begin (&global_open_file_list); 
+       e != list_end (&global_open_file_list);
+       e = list_next (e))
     {
-      lock_release (&filesys_lock);
-      lock_release (&proc_info->lock);
-      return -1;
+      struct global_open_file_entry *tmp 
+             = list_entry (e, struct global_open_file_entry, elem);
+      if (strcmp (tmp->name, file) == 0)
+        {
+          entry = tmp;
+          break;
+        }
     }
   
+  struct file *new_file = NULL;
+  if (entry != NULL)
+    {
+      new_file = file_reopen (entry->file);
+      if (new_file == NULL)
+        {
+          lock_release (&filesys_lock);
+          lock_release (&proc_info->lock);
+          return -1;
+        }
+      entry->ref_count++;
+    }
+  else
+  {
+    struct file *file_ptr = filesys_open (file);
+    if (file_ptr == NULL) 
+      {
+        lock_release (&filesys_lock);
+        lock_release (&proc_info->lock);
+        return -1;
+      }
+
+    entry = malloc (sizeof (struct global_open_file_entry));
+    if (entry == NULL)
+      {
+        file_close (file_ptr);
+        lock_release (&filesys_lock);
+        lock_release (&proc_info->lock);
+        return -1;
+      }
+    entry->name = malloc (strlen (file) + 1);
+    if (entry->name == NULL)
+      {
+        free (entry);
+        file_close (file_ptr);
+        lock_release (&filesys_lock);
+        lock_release (&proc_info->lock);
+        return -1;
+      }
+    strlcpy ((char *) entry->name, file, strlen (file) + 1);
+    entry->file = file_ptr;
+    entry->ref_count = 1;
+    list_push_back (&global_open_file_list, &entry->elem);
+    new_file = file_ptr;
+  }
+
   int fd = -1;
   for (int i = STDOUT_FILENO + 1; i < MAX_FD; i++)
       if (proc_info->fd_table[i] == NULL)
@@ -138,15 +189,16 @@ syscall_open (const char *file)
           fd = i;
           break;
         }
+
   if (fd == -1)
     {
-      file_close (file_ptr);
+      free_global_open_file_entry (entry);
       lock_release (&filesys_lock);
       lock_release (&proc_info->lock);
       return -1;
     }
   
-  proc_info->fd_table[fd] = file_ptr;
+  proc_info->fd_table[fd] = new_file;
 
   lock_release (&filesys_lock);
   lock_release (&proc_info->lock);
@@ -176,7 +228,9 @@ syscall_read (int fd, void *buffer, unsigned size)
       unsigned i;
       for (i = 0; i < size; i++)
         {
+          lock_acquire (&filesys_lock);
           char c = input_getc ();
+          lock_release (&filesys_lock);
           ((char *) buffer)[i] = c;
         }
       return i;
@@ -187,7 +241,6 @@ syscall_read (int fd, void *buffer, unsigned size)
   int bytes_read = file_read (file, buffer, size);
   lock_release (&filesys_lock);
   return bytes_read;
-
 }
 
 static int 
@@ -198,7 +251,9 @@ syscall_write (int fd, const void *buffer, unsigned size)
   
   if (fd == STDOUT_FILENO)
     {
+      lock_acquire (&filesys_lock);
       putbuf (buffer, size);
+      lock_release (&filesys_lock);
       return size;
     }
     
@@ -243,7 +298,20 @@ syscall_close (int fd)
   lock_acquire (&filesys_lock);
 
   proc_info->fd_table[fd] = NULL;
-  file_close (file);
+
+  struct list_elem *e;
+  for (e = list_begin (&global_open_file_list); 
+       e != list_end (&global_open_file_list);
+       e = list_next (e))
+    {
+      struct global_open_file_entry *entry 
+             = list_entry (e, struct global_open_file_entry, elem);
+      if (entry->file == file)
+        {
+          free_global_open_file_entry (entry);
+          break;
+        }
+    }
 
   lock_release (&filesys_lock);
   lock_release (&proc_info->lock);
@@ -255,6 +323,7 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  list_init (&global_open_file_list);
 }
 
 static int syscall_argc[] = {

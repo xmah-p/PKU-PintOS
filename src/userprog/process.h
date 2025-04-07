@@ -28,7 +28,8 @@ struct proc_info
 void run_first_process (const char *commandline);
 tid_t process_execute (const char *commandline);
 int process_wait (tid_t);
-void process_exit (void);
+void free_pd (void);
+void process_exit (int status);
 void process_activate (void);
 void free_proc_info_refcnt (struct proc_info *proc_info);
 

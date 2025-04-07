@@ -276,7 +276,7 @@ process_wait (tid_t child_tid)
 
 /** Free the current process's resources. */
 void
-process_exit (void)
+free_pd (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
@@ -295,8 +295,35 @@ process_exit (void)
       that's been freed (and cleared). */
   cur->pagedir = NULL;
   pagedir_activate (NULL);
-  pagedir_destroy (pd);
-    
+  pagedir_destroy (pd);   
+}
+
+void
+process_exit (int status) 
+{
+  struct thread *cur = thread_current ();
+  struct proc_info *proc_info = cur->proc_info;
+  char *prog_name;
+  struct file *executable;
+
+  lock_acquire (&proc_info->lock);
+  prog_name = proc_info->argv[0];
+  printf("%s: exit(%d)\n", prog_name, status);
+
+  /* Allow writes to the executable file. */
+  executable = proc_info->executable;
+  lock_acquire (&filesys_lock);
+  file_close (executable);
+  lock_release (&filesys_lock);
+
+  proc_info->exit_status = status;
+  proc_info->exited = true;
+  lock_release (&proc_info->lock);
+
+  sema_up (&proc_info->wait_sema);    /* Notify parent thread */
+
+  free_proc_info_refcnt (proc_info);    /* Free proc_info */
+  thread_exit ();               /* Exit the thread */
 }
 
 /** Sets up the CPU for running user code in the current
@@ -502,6 +529,7 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
   return true;
 
  fail:
+  /* We will only reach here if load failed. */
   file_close (file);
   lock_release (&filesys_lock);
   return false;

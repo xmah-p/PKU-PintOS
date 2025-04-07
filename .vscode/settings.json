@@ -82,6 +82,8 @@
     "cstdbool": "c",
     "typeinfo": "c",
     "variant": "c",
-    "stdlib.h": "c"
+    "stdlib.h": "c",
+    "main.h": "c",
+    "init.h": "c"
   }
 }
