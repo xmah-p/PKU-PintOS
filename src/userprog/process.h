@@ -12,6 +12,7 @@ struct proc_info
     char **argv;                   /**< Command line arguments. */
     tid_t tid;                     /**< Thread ID. */
     int exit_status;               /**< Exit status. */
+    struct file *executable;       /**< Executable file. */
     bool exited;                   /**< True if process has exited. */
     bool waited;                   /**< True if process has been waited on. */
     bool loaded;                   /**< True if process has been loaded. */

@@ -23,7 +23,8 @@
 #include "threads/synch.h"   
 
 static thread_func start_process NO_RETURN;
-static bool load (char **argv, void (**eip) (void), void **esp);
+static bool load (struct proc_info *proc_info, 
+                  void (**eip) (void), void **esp);
 
 /* Free the proc_info structure. This is a helper function for
    free_proc_info_refcnt and should not be called directly. */
@@ -187,7 +188,6 @@ start_process (void *proc_info_)
   struct proc_info *proc_info = proc_info_;
   struct intr_frame if_;
   bool success;
-  char **argv = proc_info->argv;
 
   proc_info->ref_count++;    /* Increment reference count. */
 
@@ -196,7 +196,7 @@ start_process (void *proc_info_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (argv, &if_.eip, &if_.esp);
+  success = load (proc_info, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   if (!success) 
@@ -389,20 +389,20 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (char **argv, void (**eip) (void), void **esp) 
+load (struct proc_info *proc_info, void (**eip) (void), void **esp) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
-  bool success = false;
   int i;
+  char **argv = proc_info->argv;
   char *prog_name = argv[0];
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
-    goto done;
+    return false;
   process_activate ();
 
   /* Open executable file. */
@@ -411,11 +411,13 @@ load (char **argv, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", prog_name);
-      goto done; 
+      lock_release (&filesys_lock);
+      return false;
     }
 
   /* Deny writes to the executable file. */
   file_deny_write (file);
+  proc_info->executable = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -427,7 +429,7 @@ load (char **argv, void (**eip) (void), void **esp)
       || ehdr.e_phnum > 1024) 
     {
       printf ("load: %s: error loading executable\n", prog_name);
-      goto done; 
+      goto fail; 
     }
 
   /* Read program headers. */
@@ -437,11 +439,11 @@ load (char **argv, void (**eip) (void), void **esp)
       struct Elf32_Phdr phdr;
 
       if (file_ofs < 0 || file_ofs > file_length (file))
-        goto done;
+        goto fail;
       file_seek (file, file_ofs);
 
       if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
-        goto done;
+        goto fail;
       file_ofs += sizeof phdr;
       switch (phdr.p_type) 
         {
@@ -455,7 +457,7 @@ load (char **argv, void (**eip) (void), void **esp)
         case PT_DYNAMIC:
         case PT_INTERP:
         case PT_SHLIB:
-          goto done;
+          goto fail;
         case PT_LOAD:
           if (validate_segment (&phdr, file)) 
             {
@@ -481,28 +483,28 @@ load (char **argv, void (**eip) (void), void **esp)
                 }
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
-                goto done;
+                goto fail;
             }
           else
-            goto done;
+            goto fail;
           break;
         }
     }
 
   /* Set up stack. */
   if (!setup_stack (esp, argv))
-    goto done;
+    goto fail;
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  success = true;
+  lock_release (&filesys_lock);
+  return true;
 
- done:
-  /* We arrive here whether the load is successful or not. */
+ fail:
   file_close (file);
   lock_release (&filesys_lock);
-  return success;
+  return false;
 }
 
 /** load() helpers. */

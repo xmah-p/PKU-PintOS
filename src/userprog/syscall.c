@@ -56,13 +56,9 @@ syscall_exit (int status)
   printf("%s: exit(%d)\n", prog_name, status);
 
   /* Allow writes to the executable file. */
+  executable = proc_info->executable;
   lock_acquire (&filesys_lock);
-  executable = filesys_open (prog_name);
-  if (executable != NULL)
-    {
-      file_allow_write (executable);
-      file_close (executable);
-    }
+  file_close (executable);
   lock_release (&filesys_lock);
 
   proc_info->exit_status = status;
