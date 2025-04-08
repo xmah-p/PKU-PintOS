@@ -5,7 +5,7 @@
 #include "threads/synch.h"
 #include "filesys/file.h"
 
-#define MAX_FD 131 /**< Maximum number of file descriptors. */
+#define MAX_FD 128 /**< Maximum number of file descriptors. */
 
 typedef int pid_t; /**< Process ID type. */
 #define PID_ERROR ((pid_t) -1)          /**< Error value for pid_t. */
@@ -16,7 +16,6 @@ struct proc_info
     pid_t pid;                     /**< Thread ID. */
     int exit_status;               /**< Exit status. */
     struct file *executable;       /**< Executable file. */
-    bool exited;                   /**< True if process has exited. */
     bool waited;                   /**< True if process has been waited on. */
     bool loaded;                   /**< True if process has been loaded. */
     struct thread *parent;         /**< Parent thread. */

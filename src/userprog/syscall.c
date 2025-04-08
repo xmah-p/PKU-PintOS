@@ -17,7 +17,8 @@
 
 static void syscall_handler (struct intr_frame *);
 
-/* Checks if addr is a valid user address. */
+/* Checks if addr is a valid user address. Helper function for 
+   is_valid_nbyte_ptr and is_valid_string. */
 static bool 
 is_valid_addr (const void *addr) 
 {
@@ -32,6 +33,24 @@ static bool
 is_valid_nbyte_ptr (const void *ptr, size_t n) 
 {
   return is_valid_addr (ptr) && is_valid_addr (ptr + n - 1);
+}
+
+/* Checks if a string is valid. */
+static bool
+is_valid_string (const char *str) 
+{
+  if (!is_valid_addr (str))
+    return false;
+  
+  while (true) 
+  {
+    if (!is_valid_addr (str))
+      return false;
+    if (*str == '\0')
+      break;
+    str++;
+  }
+  return true;
 }
 
 static struct file *get_file (int fd);
@@ -54,7 +73,7 @@ syscall_exit (int status)
 static pid_t 
 syscall_exec (const char *cmd_line) 
 {
-  if (!is_valid_nbyte_ptr (cmd_line, 2))
+  if (!is_valid_string (cmd_line))
       syscall_exit (-1);
   return process_execute (cmd_line);
 }
@@ -69,7 +88,7 @@ syscall_wait (pid_t pid)
 static bool 
 syscall_create (const char *file, unsigned initial_size) 
 {
-  if (!is_valid_nbyte_ptr (file, 2))
+  if (!is_valid_string (file))
       syscall_exit (-1);
 
   lock_acquire (&filesys_lock);
@@ -81,7 +100,7 @@ syscall_create (const char *file, unsigned initial_size)
 static bool 
 syscall_remove (const char *file) 
 {
-  if (!is_valid_nbyte_ptr (file, 2))
+  if (!is_valid_string (file))
       syscall_exit (-1);
 
   lock_acquire (&filesys_lock);
@@ -94,7 +113,7 @@ syscall_remove (const char *file)
 static int
 syscall_open (const char *file)
 {
-  if (!is_valid_nbyte_ptr (file, 2))
+  if (!is_valid_string (file))
     syscall_exit (-1);
 
   struct thread *cur = thread_current ();
@@ -157,9 +176,7 @@ syscall_read (int fd, void *buffer, unsigned size)
       unsigned i;
       for (i = 0; i < size; i++)
         {
-          lock_acquire (&filesys_lock);
           char c = input_getc ();
-          lock_release (&filesys_lock);
           ((char *) buffer)[i] = c;
         }
       return i;
@@ -180,9 +197,7 @@ syscall_write (int fd, const void *buffer, unsigned size)
   
   if (fd == STDOUT_FILENO)
     {
-      lock_acquire (&filesys_lock);
       putbuf (buffer, size);
-      lock_release (&filesys_lock);
       return size;
     }
     

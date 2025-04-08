@@ -38,9 +38,8 @@ free_proc_info (struct proc_info *proc_info)
   free (proc_info);
 }
 
-/* Free the proc_info structure if its reference count is 0.
-   Otherwise, decrement the reference count. This function is
-   thread-safe. */
+/* Decrement the reference count of proc_info and free it if it reaches 0.
+   This function is thread-safe. */
 void 
 free_proc_info_refcnt (struct proc_info *proc_info)
 {
@@ -67,7 +66,6 @@ init_proc_info (struct proc_info *proc_info, char **argv)
 {
   proc_info->argv = argv;
   proc_info->exit_status = -1;
-  proc_info->exited = false;
   proc_info->waited = false;
   proc_info->loaded = false;
   proc_info->parent = thread_current ();
@@ -130,12 +128,17 @@ process_execute (const char *commandline)
       palloc_free_page (argv);
       return PID_ERROR;
     }
-  strlcpy (cmdline_copy, commandline, PGSIZE);
+  /* In setup_stack (), we will copy the argument strings, 
+     argv vector and some other stuff to the stack. 
+     They should fit in a single page. */
+  strlcpy (cmdline_copy, commandline, PGSIZE / 2);  
 
   for (token = strtok_r (cmdline_copy, " ", &save_ptr); token != NULL;
        token = strtok_r (NULL, " ", &save_ptr))
     { 
-      if ((size_t) argc >= PGSIZE / sizeof (char *))
+      /* This ensures we will not overflow the stack page
+         in setup_stack(). */
+      if ((size_t) (argc + 8) * sizeof (char *) >= PGSIZE / 2)
         {
           palloc_free_page (argv);
           palloc_free_page (cmdline_copy);
@@ -309,6 +312,8 @@ process_exit (int status)
   struct proc_info *proc_info = cur->proc_info;
   char *prog_name;
   struct file *executable;
+  struct list_elem *e;
+  struct proc_info *child_proc_info;
 
   lock_acquire (&proc_info->lock);
   prog_name = proc_info->argv[0];
@@ -326,7 +331,14 @@ process_exit (int status)
   lock_release (&filesys_lock);
 
   proc_info->exit_status = status;
-  proc_info->exited = true;
+  /* Free child proc_info */
+  e = list_begin (&proc_info->child_list);
+  while (e != list_end (&proc_info->child_list))
+    {
+      child_proc_info = list_entry (e, struct proc_info, child_elem);
+      e = list_next (e);
+      free_proc_info_refcnt (child_proc_info);
+    }
   lock_release (&proc_info->lock);
 
   sema_up (&proc_info->wait_sema);    /* Notify parent thread */
@@ -653,7 +665,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 }
 
 /** Create a minimal stack by mapping a zeroed page at the top of
-   user virtual memory. */
+   user virtual memory. process_execute ensures we will not overflow
+   the stack page. */
 static bool
 setup_stack (void **esp, char **argv)
 {
@@ -694,14 +707,14 @@ setup_stack (void **esp, char **argv)
   *esp -= (argc + 1) * sizeof (char *);
   memcpy (*esp, argv_copy, (argc + 1) * sizeof (char *));
   
-  /* argv and argc: 12 bytes */
+  /* argv and argc: 8 bytes */
   char **argv_ptr = *esp;
   *esp -= sizeof (char **);
   *(char ***) *esp = argv_ptr;
   *esp -= sizeof (int);
   *(int *) *esp = argc;
 
-  /* fake return address */
+  /* fake return address: 4 bytes */
   *esp -= sizeof (void *);
   *(void **) *esp = 0;
   
