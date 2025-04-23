@@ -30,7 +30,8 @@ static bool load (struct proc_info *proc_info,
 inline static void 
 free_proc_info (struct proc_info *proc_info)
 {
-  if (proc_info->argv != NULL) {
+  if (proc_info->argv != NULL) 
+  {
     palloc_free_page (proc_info->argv[0]);
     palloc_free_page (proc_info->argv);
   }
