@@ -1,0 +1,33 @@
+/* vm/frame.h */
+#ifndef VM_FRAME_H
+#define VM_FRAME_H
+
+#include <stdbool.h>
+#include "threads/thread.h"
+#include "lib/kernel/hash.h"
+
+
+struct frame
+{
+    void *kpage;               /* Kernel (physical) address of frame */
+    struct thread *owner;      /* Owning process/thread */
+    void *upage;               /* User virtual address mapped here */
+    bool pinned;               /* If true, do not evict */
+    struct hash_elem h_elem;   /* Hash element (keyed by kpage) */
+    struct list_elem l_elem;   /* List element for global frame list */
+};
+
+/* Initializes the global frame table (call in thread_init). */
+void frame_init (void);
+
+/* Allocates a user frame for user page 'upage', evicting if needed. */
+void *frame_alloc (void *upage);
+
+/* Frees a frame when a process exits (unmaps and releases). */
+void frame_free (void *kpage);
+
+/* Pins/unpins a frame to prevent/allow eviction. */
+void frame_pin (void *kpage);
+void frame_unpin (void *kpage);
+
+#endif /* vm/frame.h */
