@@ -83,7 +83,7 @@ typedef int tid_t;
 struct thread
   {
     /* Owned by thread.c. */
-    int64_t sleep_ticks;              /**< Number of ticks to sleep. */
+    int64_t sleep_ticks;                /**< Number of ticks to sleep. */
     tid_t tid;                          /**< Thread identifier. */
     enum thread_status status;          /**< Thread state. */
     char name[16];                      /**< Name (for debugging purposes). */
@@ -92,10 +92,10 @@ struct thread
     struct list_elem allelem;           /**< List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;            /**< List element. */
+    struct list_elem elem;              /**< List element. */
 
     /* Used by sleep_list */
-    struct list_elem sleep_elem;      /**< List element for sleep list. */
+    struct list_elem sleep_elem;        /**< List element for sleep list. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

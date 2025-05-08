@@ -25,6 +25,12 @@ struct proc_info
     struct semaphore wait_sema;    /**< Semaphore for syscall wait */
     struct lock lock;              /**< Lock for proc_info. */
     int ref_count;                 /**< Reference count for process. */
+
+#ifdef VM
+    /* Owned by vm/page.c. */
+    struct hash sup_page_table;         /**< Supplemental page table. */
+    struct lock spt_lock;               /**< Lock for the sup_page_table. */
+#endif
   };
 
 /* pid-tid mapping */

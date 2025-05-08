@@ -202,6 +202,9 @@ start_process (void *proc_info_)
 
   proc_info->ref_count++;    /* Increment reference count. */
 
+  /* Initialize supplementary page table. */
+  suppagedir_init (&proc_info->sup_page_table);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -319,6 +322,8 @@ process_exit (int status)
   lock_acquire (&proc_info->lock);
   prog_name = proc_info->argv[0];
   printf("%s: exit(%d)\n", prog_name, status);
+
+  supppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
 
   /* Allow writes to the executable file. */
   executable = proc_info->executable;

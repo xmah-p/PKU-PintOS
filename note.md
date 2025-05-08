@@ -398,3 +398,38 @@ clear; make; pintos --gdb --filesys-size=2 -p ../../examples/echo -a echo -- -f 
   - 不能用交换槽存特定的页
   - 当交换槽的内容被读回物理页时，释放交换槽
 
+## 加载
+
+加载可执行文件时，只建立用户页到文件内容的映射关系，不读入数据。
+
+当第一次访问页时，触发 page fault，在那里加载（lazily load）：  
+- idea 1: 将磁盘地址存在 PTE，就像 ICS 里
+- idea 2: 其他数据结构（补充页表？）存在 thread？
+
+怎么加载：  
+- 把页读入内存
+  - 替换策略
+- 更新 PTE，用已有的接口 `threads/pte.h`, `userprog/pagedir.h(c)`
+
+在 Lab 3，只需要管理 user pool 里的帧：  
+- 确保在之前从未使用过 user pool 的帧
+- kernel pool 不会有过大压力
+
+hash 表：用户页到 swap 空间或文件内容的映射，page -> frame 的映射 
+- 用 hash 表存 Key，把 key 和 value 放在一个结构体里
+
+process exit 释放资源
+
+磁盘扇区 512 字节，页 4096 字节
+
+帧表：  
+- 全局，每个条目对应一个物理帧，存一个用户页（内核页）、用户线程指针。
+- 整个帧表被一个全局 lock 保护
+- 空闲帧通过 `palloc_get_page(PAL_USER)` 获取，若没有空闲帧，则驱逐一个帧（clock algorithm）
+- 驱逐：  
+  - 如果脏，写回 swap
+  - 清除 PTE
+  - 重用其帧
+  - 如果 swap 满了，panic
+
+每个线程都拥有一个 pagedir，切换线程时切换 pagedir。内核线程的 pagedir 为 NULL（实际上是 init_page_dir）。

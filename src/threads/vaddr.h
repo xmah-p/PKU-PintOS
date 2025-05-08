@@ -12,6 +12,9 @@
    See pte.h for functions and macros specifically for x86
    hardware page tables. */
 
+/* Generate a bitmask with CNT bits set, starting at SHIFT.  For example,
+   BITMASK(3, 5) is 0b11111000. The mask is unsigned long, so it can be used to
+    mask a pointer. */
 #define BITMASK(SHIFT, CNT) (((1ul << (CNT)) - 1) << (SHIFT))
 
 /** Page offset (bits 0:12). */
@@ -30,16 +33,19 @@ static inline uintptr_t pg_no (const void *va) {
   return (uintptr_t) va >> PGBITS;
 }
 
-/** Round up to nearest page boundary. */
+/** Round up to nearest page boundary.
+    eg. pg_round_up (0x1234) = 0x2000, pg_round_up (0x2000) = 0x2000. */
 static inline void *pg_round_up (const void *va) {
   return (void *) (((uintptr_t) va + PGSIZE - 1) & ~PGMASK);
 }
 
-/** Round down to nearest page boundary. */
+/** Round down to nearest page boundary.
+    eg. pg_round_down (0x1234) = 0x1000, pg_round_down (0x2000) = 0x2000.
+    This is the same as pg_round_up (va) - PGSIZE. */
 static inline void *pg_round_down (const void *va) {
   return (void *) ((uintptr_t) va & ~PGMASK);
 }
-
+
 /** Base address of the 1:1 physical-to-virtual mapping.  Physical
    memory is mapped starting at this virtual address.  Thus,
    physical address 0 is accessible at PHYS_BASE, physical

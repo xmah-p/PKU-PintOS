@@ -7,15 +7,15 @@
 #include "lib/kernel/hash.h"
 
 
-struct frame
-{
+struct frame_entry
+  {
     void *kpage;               /* Kernel (physical) address of frame */
     struct thread *owner;      /* Owning process/thread */
     void *upage;               /* User virtual address mapped here */
     bool pinned;               /* If true, do not evict */
     struct hash_elem h_elem;   /* Hash element (keyed by kpage) */
     struct list_elem l_elem;   /* List element for global frame list */
-};
+  };
 
 /* Initializes the global frame table (call in thread_init). */
 void frame_init (void);
@@ -27,7 +27,6 @@ void *frame_alloc (void *upage);
 void frame_free (void *kpage);
 
 /* Pins/unpins a frame to prevent/allow eviction. */
-void frame_pin (void *kpage);
-void frame_unpin (void *kpage);
+void frame_set_pinned (void *kpage, bool pinned) ;
 
 #endif /* vm/frame.h */
