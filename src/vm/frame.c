@@ -1,6 +1,7 @@
 /* vm/frame.c */
 #include "vm/frame.h"
 
+#include "devices/block.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
@@ -9,7 +10,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "vm/page.h"
-#include "devices/block.h"
+#include "vm/swap.h"
 
 static struct hash frame_map;    /* Hash table: key = kpage */
 static struct list frame_list;   /* List of all frames for eviction */
@@ -111,7 +112,6 @@ frame_alloc (void *upage)
   bool dirty = pagedir_is_dirty (victim->owner->pagedir, victim->upage);
   if (dirty) 
     {
-      extern block_sector_t swap_write (void *frame_entry); 
       block_sector_t slot = swap_write (victim->kpage);
       /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;

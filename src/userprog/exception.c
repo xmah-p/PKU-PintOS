@@ -190,7 +190,7 @@ page_fault (struct intr_frame *f)
     {
       if (!user)
         {
-          handle_syscall_bad_ref (f);
+          process_exit (-1);
           return;
         }
       print_page_fault_stats_and_kill (f, fault_addr, not_present,

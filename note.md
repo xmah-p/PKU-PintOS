@@ -452,8 +452,11 @@ debugpintos
 # ctrl+leftarrow 会卡死
 
 # 测试
-rm tests/userprog/read-boundary.output; make tests/userprog/read-boundary.result
-rm tests/filesys/base/syn-write.output; make tests/filesys/base/syn-write.result
+rm build/tests/userprog/open-null.output; make build/tests/userprog/open-null.result  # userprog
+
+rm build/tests/filesys/base/syn-write.output; make build/tests/filesys/base/syn-write.result  # filesys
+
+rm build/tests/vm/page-linear.output; make build/tests/vm/page-linear.result            # vm
 
 code src/userprog/build/tests/userprog/syn-read.output
 
@@ -461,3 +464,17 @@ make grade > ~/pintos/grade.txt  # run all tests and grade
 ```
 
 类型：清除 void *，为 kpage 设置类型。
+
+如果是从 swap 读出来的，需要置脏位！！！
+
+
+[] page-linear
+[] page-parallel
+[] page-shuffle
+[] page-merge-seq
+[] page-merge-par
+[x] pt-bad-addr
+[x] pt-bad-read
+[x] pt-write-code
+[x] pt-write-code2
+[x] pt-grow-bad

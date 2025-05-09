@@ -146,7 +146,7 @@ syscall_filesize (int fd)
 static int 
 syscall_read (int fd, void *buffer, unsigned size) 
 {
-  if (!is_valid_nbyte_ptr((byte_t *) buffer, size, false))
+  if (!is_valid_nbyte_ptr((byte_t *) buffer, size, true))
     {  
       syscall_exit (-1);
     }

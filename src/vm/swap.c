@@ -50,7 +50,7 @@ swap_write (void *frame)
   if (slot == BITMAP_ERROR) 
     {
       lock_release (&swap_lock);
-      PANIC("swap: out of space");
+      PANIC ("swap: out of space");
     }
 
   /* Write sectors to swap device */
@@ -67,6 +67,7 @@ swap_write (void *frame)
 void 
 swap_read (block_sector_t slot, void *frame) 
 {
+  ASSERT (slot != (block_sector_t) -1);
   lock_acquire (&swap_lock);
   for (size_t i = 0; i < SECTORS_PER_PAGE; i++)
     block_read (swap_block, 

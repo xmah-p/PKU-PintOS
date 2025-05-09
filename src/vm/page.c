@@ -126,7 +126,11 @@ load_page_from_spt (void *fault_addr)
   /* Fill frame from backing store */
   /* Zeroed page */
   if (spe->type == PAGE_ZERO) 
-    memset(kpage, 0, PGSIZE);
+    {
+      memset(kpage, 0, PGSIZE);
+      /* Install page into page table */
+      return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+    }
 
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
@@ -140,7 +144,9 @@ load_page_from_spt (void *fault_addr)
           printf ("load_page_from_spt: read error for %p\n", upage);
           return false;
         }
-      memset(kpage + spe->read_bytes, 0, spe->zero_bytes);
+      memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
+      /* Install page into page table */
+      return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
     }
 
   /* Swapped out */
@@ -148,10 +154,13 @@ load_page_from_spt (void *fault_addr)
     {
       swap_read (spe->swap_slot, kpage);
       spe->swap_slot = (block_sector_t) -1;
-    }
 
-  /* Install page into page table */
-  return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+      /* Install page into page table and set its dirty bit */
+      if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
+        return false;
+      pagedir_set_dirty (t->pagedir, upage, true);
+      return true;
+    }
 }
 
 /* Set the swap slot in the supplemental page table entry. */
