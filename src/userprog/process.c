@@ -669,6 +669,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
+  printf ("load_segment: loaded upage %p\n", upage);
   return true;
 }
 
@@ -699,6 +700,7 @@ setup_stack (void **esp, char **argv)
   if (!suppagedir_install_zero_page (
         &thread_current ()->proc_info->sup_page_table, upage, true))
     return false;
+  printf ("setup_stack: upage %p installed\n", upage);
   #endif
 
   *esp = PHYS_BASE;

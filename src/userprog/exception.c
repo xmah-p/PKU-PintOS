@@ -174,8 +174,11 @@ page_fault (struct intr_frame *f)
   if (not_present)
     {
       if (!load_page_from_spt (fault_addr))
-          print_page_fault_stats_and_kill (f, fault_addr, not_present,
+        {
+           printf ("load_page_from_spt: failed to load page %p\n", fault_addr);
+           print_page_fault_stats_and_kill (f, fault_addr, not_present,
                                            write, user);
+        }
     }
   /* Rights violation: kill process. */
   else

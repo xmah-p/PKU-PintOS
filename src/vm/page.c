@@ -1,5 +1,8 @@
 /* vm/page.c */
 #include "vm/page.h"
+
+#include <stdio.h>
+
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
@@ -101,15 +104,26 @@ suppagedir_find (struct hash *spt, void *upage)
 bool 
 load_page_from_spt (void *fault_addr) 
 {
+  printf ("load_page_from_spt: fault_addr = %p\n", fault_addr);
   void *upage = pg_round_down (fault_addr);
   struct thread *t = thread_current ();
   struct hash *spt = &t->proc_info->sup_page_table;
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
-  if (!spe) return false;
+  if (!spe)
+    {
+      /* No entry in SPT: page fault error */
+      printf ("load_page_from_spt: no entry in SPT for %p\n", upage);
+      return false;
+    }
 
   /* Allocate a frame for this page */
   void *kpage = frame_alloc (upage);
-  if (!kpage) return false; 
+  if (!kpage)
+    {
+      /* No free frame: page fault error */
+      printf ("load_page_from_spt: no free frame for %p\n", upage);
+      return false;
+    }
 
   /* Fill frame from backing store */
   /* Zeroed page */
@@ -120,11 +134,12 @@ load_page_from_spt (void *fault_addr)
   else if (spe->type == PAGE_BIN) 
     {
       file_seek(spe->file, spe->ofs);
-      size_t r = file_read(spe->file, kpage, spe->read_bytes);
+      size_t r = file_read (spe->file, kpage, spe->read_bytes);
       if (r != spe->read_bytes) 
         {
           /* read error */
           palloc_free_page (kpage);
+          printf ("load_page_from_spt: read error for %p\n", upage);
           return false;
         }
       memset(kpage + spe->read_bytes, 0, spe->zero_bytes);
