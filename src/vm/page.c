@@ -11,6 +11,7 @@
 #include "userprog/process.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "filesys/filesys.h"
 #include <string.h>
 
 /** Each process has a Supplementart Page Table (SPT), which
@@ -135,8 +136,10 @@ load_page_from_spt (void *fault_addr)
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
     {
+      lock_acquire (&filesys_lock);
       file_seek (spe->file, spe->ofs);
       size_t r = file_read (spe->file, kpage, spe->read_bytes);
+      lock_release (&filesys_lock);
       if (r != spe->read_bytes) 
         {
           /* read error */
@@ -161,6 +164,8 @@ load_page_from_spt (void *fault_addr)
       pagedir_set_dirty (t->pagedir, upage, true);
       return true;
     }
+  
+  NOT_REACHED ();
 }
 
 /* Set the swap slot in the supplemental page table entry. */

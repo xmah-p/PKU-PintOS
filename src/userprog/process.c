@@ -78,6 +78,10 @@ init_proc_info (struct proc_info *proc_info, char **argv)
   sema_init (&proc_info->wait_sema, 0);
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
+  #ifdef VM
+  /* Initialize supplemental page table. */
+  suppagedir_init (&proc_info->sup_page_table);
+  #endif
   proc_info->ref_count = 1;
 }
 
@@ -204,9 +208,6 @@ start_process (void *proc_info_)
   bool success;
 
   proc_info->ref_count++;    /* Increment reference count. */
-
-  /* Initialize supplemental page table. */
-  suppagedir_init (&proc_info->sup_page_table);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
