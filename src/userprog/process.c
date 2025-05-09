@@ -569,14 +569,14 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
 static bool install_page (void *upage, void *kpage, bool writable) UNUSED;
 
 static bool eager_load_page (size_t page_read_bytes, 
-                                  size_t page_zero_bytes,
-                                  struct file *file, uint8_t *upage, 
-                                  bool writable) UNUSED;
+                             size_t page_zero_bytes,
+                             struct file *file, off_t ofs, 
+                             uint8_t *upage, bool writable) UNUSED;
 
-static bool lazy_load_page (struct hash *spt, uint8_t *upage,
-                                  struct file *file, off_t ofs,
-                                  size_t read_bytes, size_t zero_bytes,
-                                  bool writable);
+static bool lazy_load_page (size_t page_read_bytes, 
+                            size_t page_zero_bytes,
+                            struct file *file, off_t ofs, 
+                            uint8_t *upage, bool writable);
 
 /** Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -656,11 +656,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       #ifndef VM
       if (!eager_load_page(page_read_bytes, page_zero_bytes,
-                              file, upage, writable))
+                              file, ofs, upage, writable))
       #else
-      if (!lazy_load_page (&thread_current ()->proc_info->sup_page_table,
-                              upage, file, ofs, page_read_bytes,
-                              page_zero_bytes, writable))
+      if (!lazy_load_page (page_read_bytes, page_zero_bytes,
+                              file, ofs, upage, writable))
       #endif
         return false;
 
@@ -668,8 +667,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += page_read_bytes;    /* Cannot use file_tell ()! */
     }
-  printf ("load_segment: loaded upage %p\n", upage);
   return true;
 }
 
@@ -700,7 +699,6 @@ setup_stack (void **esp, char **argv)
   if (!suppagedir_install_zero_page (
         &thread_current ()->proc_info->sup_page_table, upage, true))
     return false;
-  printf ("setup_stack: upage %p installed\n", upage);
   #endif
 
   *esp = PHYS_BASE;
@@ -761,8 +759,8 @@ install_page (void *upage, void *kpage, bool writable)
 /* Actually allocate a page from user pool and load content from file
    into it. */
 static bool
-eager_load_page (size_t page_read_bytes, size_t page_zero_bytes,
-                      struct file *file, uint8_t *upage, bool writable)
+eager_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
+                 off_t ofs, uint8_t *upage, bool writable)
 {
   /* Get a page of memory. */
   uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -770,12 +768,13 @@ eager_load_page (size_t page_read_bytes, size_t page_zero_bytes,
     return false;
   
   /* Load this page. */
-  if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+  file_seek (file, ofs);
+  if (file_read (file, kpage, read_bytes) != (int) read_bytes)
     {
       palloc_free_page (kpage);
       return false; 
     }
-  memset (kpage + page_read_bytes, 0, page_zero_bytes);
+  memset (kpage + read_bytes, 0, zero_bytes);
 
   /* Add the page to the process's address space. */
   if (!install_page (upage, kpage, writable)) 
@@ -788,11 +787,10 @@ eager_load_page (size_t page_read_bytes, size_t page_zero_bytes,
 
 /* Lazy load page. */
 static bool
-lazy_load_page (struct hash *spt, uint8_t *upage,
-                      struct file *file, off_t ofs,
-                      size_t read_bytes, size_t zero_bytes,
-                      bool writable)
+lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
+                off_t ofs, uint8_t *upage, bool writable)
 {
+  struct hash *spt = &thread_current ()->proc_info->sup_page_table;
   return suppagedir_install_bin_page (spt, upage, file, ofs,
                               read_bytes, zero_bytes, writable);
 }

@@ -203,7 +203,8 @@ debugpintos
 # ctrl+leftarrow 会卡死
 
 # 测试
-rm tests/userprog/bad-write2.output; make tests/userprog/bad-write2.result
+rm tests/userprog/read-boundary.output; make tests/userprog/read-boundary.result
+rm tests/filesys/base/syn-write.output; make tests/filesys/base/syn-write.result
 
 rm tests/userprog/no-vm/multi-oom.output; make tests/userprog/no-vm/multi-oom.result
 
@@ -433,3 +434,28 @@ process exit 释放资源
   - 如果 swap 满了，panic
 
 每个线程都拥有一个 pagedir，切换线程时切换 pagedir。内核线程的 pagedir 为 NULL（实际上是 init_page_dir）。
+
+
+```bash
+docker run -it --rm --name pintos --mount type=bind,source=D:/wksp/pintos,target=/home/PKUOS/pintos pkuflyingpig/pintos bash
+# 或者
+docker exec -it pintos bash
+
+cd pintos/src/vm/; make
+
+cd build;
+
+# debug 在新终端
+pintos-gdb kernel.o  
+debugpintos
+# 如果这一步网络不通，ctrl+a+x 第一个终端的 qemu
+# ctrl+leftarrow 会卡死
+
+# 测试
+rm tests/userprog/read-boundary.output; make tests/userprog/read-boundary.result
+rm tests/filesys/base/syn-write.output; make tests/filesys/base/syn-write.result
+
+code src/userprog/build/tests/userprog/syn-read.output
+
+make grade > ~/pintos/grade.txt  # run all tests and grade
+```

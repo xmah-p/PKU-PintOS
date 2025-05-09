@@ -142,8 +142,12 @@ syscall_filesize (int fd)
 static int 
 syscall_read (int fd, void *buffer, unsigned size) 
 {
+  printf ("read!\n");
   if (!is_valid_nbyte_ptr(buffer, size))
+    {  
+      printf ("bad read!\n");
       syscall_exit (-1);
+    }
 
   if (fd == STDIN_FILENO)
     {
@@ -159,11 +163,12 @@ syscall_read (int fd, void *buffer, unsigned size)
     }
 
   struct file *file = get_file (fd);
-  lock_acquire (&filesys_lock);
   page_set_pinned (buffer, size, true);
+  lock_acquire (&filesys_lock);
   int bytes_read = file_read (file, buffer, size);
-  page_set_pinned (buffer, size, false);
   lock_release (&filesys_lock);
+  page_set_pinned (buffer, size, false);
+  printf ("read finished!\n");
   return bytes_read;
 }
 
@@ -183,11 +188,11 @@ syscall_write (int fd, const void *buffer, unsigned size)
     
   struct file *file = get_file (fd);
 
-  lock_acquire (&filesys_lock);
   page_set_pinned (buffer, size, true);
+  lock_acquire (&filesys_lock);
   int bytes_written = file_write (file, buffer, size);
-  page_set_pinned (buffer, size, false);
   lock_release (&filesys_lock);
+  page_set_pinned (buffer, size, false);
   return bytes_written;
 }
 
@@ -382,4 +387,7 @@ page_set_pinned (const void *buffer, unsigned size, bool pinned)
       void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
       frame_set_pinned (kpage, pinned);
     }
+  void *upage = pg_round_down (buffer + size - 1);
+  void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
+  frame_set_pinned (kpage, pinned);
 }

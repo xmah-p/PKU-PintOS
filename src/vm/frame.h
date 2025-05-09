@@ -9,12 +9,12 @@
 
 struct frame_entry
   {
+    struct hash_elem h_elem;   /* Hash element (keyed by kpage) */
+    struct list_elem l_elem;   /* List element for global frame list */
     void *kpage;               /* Kernel (physical) address of frame */
     struct thread *owner;      /* Owning process/thread */
     void *upage;               /* User virtual address mapped here */
     bool pinned;               /* If true, do not evict */
-    struct hash_elem h_elem;   /* Hash element (keyed by kpage) */
-    struct list_elem l_elem;   /* List element for global frame list */
   };
 
 /* Initializes the global frame table (call in thread_init). */

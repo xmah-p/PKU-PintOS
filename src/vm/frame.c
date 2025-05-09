@@ -136,16 +136,16 @@ static struct frame_entry *
 frame_find (void *kpage) 
 {
   lock_acquire (&frame_lock);
-  struct frame_entry fe = { .kpage = kpage };
-  struct hash_elem *he = hash_find (&frame_map, &fe.h_elem);
-  if (he != NULL) 
+  struct frame_entry key_fe = { .kpage = kpage };
+  struct hash_elem *he = hash_find (&frame_map, &key_fe.h_elem);
+  if (he == NULL) 
     {
-      struct frame_entry *fe = hash_entry (he, struct frame_entry, h_elem);
       lock_release (&frame_lock);
-      return fe;
+      return NULL;
     }
+  struct frame_entry *fe = hash_entry (he, struct frame_entry, h_elem);
   lock_release (&frame_lock);
-  return NULL;
+  return fe;
 }
 
 /* Free a frame and its entry (called when process exits). */

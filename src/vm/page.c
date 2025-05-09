@@ -87,7 +87,7 @@ bool suppagedir_install_zero_page (struct hash *spt, void *upage,
   spe->zero_bytes = 0;
   spe->writable = writable;
   spe->swap_slot = (block_sector_t) -1;
-  hash_insert(spt, &spe->h_elem);
+  hash_insert (spt, &spe->h_elem);
   return true;
 }
 
@@ -96,7 +96,7 @@ static struct sup_page_entry *
 suppagedir_find (struct hash *spt, void *upage) 
 {
   struct sup_page_entry spe = { .upage = upage };
-  struct hash_elem *he = hash_find(spt, &spe.h_elem);
+  struct hash_elem *he = hash_find (spt, &spe.h_elem);
   return he ? hash_entry (he, struct sup_page_entry, h_elem) : NULL;
 }
 
@@ -104,7 +104,6 @@ suppagedir_find (struct hash *spt, void *upage)
 bool 
 load_page_from_spt (void *fault_addr) 
 {
-  printf ("load_page_from_spt: fault_addr = %p\n", fault_addr);
   void *upage = pg_round_down (fault_addr);
   struct thread *t = thread_current ();
   struct hash *spt = &t->proc_info->sup_page_table;
@@ -112,7 +111,6 @@ load_page_from_spt (void *fault_addr)
   if (!spe)
     {
       /* No entry in SPT: page fault error */
-      printf ("load_page_from_spt: no entry in SPT for %p\n", upage);
       return false;
     }
 
@@ -133,7 +131,7 @@ load_page_from_spt (void *fault_addr)
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
     {
-      file_seek(spe->file, spe->ofs);
+      file_seek (spe->file, spe->ofs);
       size_t r = file_read (spe->file, kpage, spe->read_bytes);
       if (r != spe->read_bytes) 
         {
@@ -169,20 +167,22 @@ suppagedir_set_page_swapped (struct hash *spt, void *upage,
     }
 }
 
+static void destroy_spe (struct hash_elem *e, void *aux UNUSED);
+
 /* Destroy the supplemental page table, freeing entries and
    swap slots. */
 void 
 suppagedir_destroy (struct hash *spt) 
 {
-  struct hash_iterator i;
-  hash_first (&i, spt);
-  while (hash_next (&i)) 
-    {
-      struct sup_page_entry *spe = hash_entry (hash_cur (&i), 
-                                      struct sup_page_entry, h_elem);
-      /* Free swap slot if used */
-      if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
-        swap_free(spe->swap_slot);
-      free(spe);
-    }
+  hash_apply (spt, destroy_spe);
+}
+
+static void
+destroy_spe (struct hash_elem *e, void *aux UNUSED)
+{
+  struct sup_page_entry *spe = hash_entry (e, struct sup_page_entry, h_elem);
+  /* Free swap slot if used */
+  if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
+    swap_free (spe->swap_slot);
+  free (spe);
 }

@@ -175,7 +175,6 @@ page_fault (struct intr_frame *f)
     {
       if (!load_page_from_spt (fault_addr))
         {
-           printf ("load_page_from_spt: failed to load page %p\n", fault_addr);
            print_page_fault_stats_and_kill (f, fault_addr, not_present,
                                            write, user);
         }
