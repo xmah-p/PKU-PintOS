@@ -459,3 +459,5 @@ code src/userprog/build/tests/userprog/syn-read.output
 
 make grade > ~/pintos/grade.txt  # run all tests and grade
 ```
+
+类型：清除 void *，为 kpage 设置类型。

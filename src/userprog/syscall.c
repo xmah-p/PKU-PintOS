@@ -16,12 +16,16 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 
+typedef unsigned char byte_t;
+
 static void syscall_handler (struct intr_frame *);
 
 /* Helper functions. */
 
-static bool is_valid_addr (const void *addr);
-static bool is_valid_nbyte_ptr (const void *ptr, size_t n);
+static int get_user (const byte_t *uaddr);
+static bool put_user (byte_t *udst, byte_t byte);
+static bool is_valid_addr (byte_t *addr, bool writable);
+static bool is_valid_nbyte_ptr (byte_t *ptr, size_t n, bool writable);
 static bool is_valid_string (const char *str);
 
 static struct file *get_file (int fd);
@@ -142,10 +146,8 @@ syscall_filesize (int fd)
 static int 
 syscall_read (int fd, void *buffer, unsigned size) 
 {
-  printf ("read!\n");
-  if (!is_valid_nbyte_ptr(buffer, size))
+  if (!is_valid_nbyte_ptr((byte_t *) buffer, size, false))
     {  
-      printf ("bad read!\n");
       syscall_exit (-1);
     }
 
@@ -175,7 +177,7 @@ syscall_read (int fd, void *buffer, unsigned size)
 static int 
 syscall_write (int fd, const void *buffer, unsigned size) 
 {
-  if (!is_valid_nbyte_ptr (buffer, size))
+  if (!is_valid_nbyte_ptr ((byte_t *) buffer, size, true))
       syscall_exit (-1);
   
   if (fd == STDOUT_FILENO)
@@ -264,7 +266,7 @@ syscall_handler (struct intr_frame *f)
 {
   int *esp = (int *) f->esp;
 
-  if (!is_valid_nbyte_ptr(esp, sizeof (int)))
+  if (!is_valid_nbyte_ptr((byte_t *) esp, sizeof (int), false))
       syscall_exit (-1);
 
   int syscall_num = esp[0];
@@ -273,7 +275,7 @@ syscall_handler (struct intr_frame *f)
 
   int argc = syscall_argc[syscall_num];
   for (int i = 1; i <= argc; i++)
-    if (!is_valid_nbyte_ptr(esp + i, sizeof (int)))  
+    if (!is_valid_nbyte_ptr((byte_t *) (esp + i), sizeof (int), false))  
       syscall_exit (-1);
   
   switch (syscall_num)
@@ -341,39 +343,68 @@ get_file (int fd)
   return file;
 }
 
+/* Reads a byte at user virtual address UADDR.
+   UADDR must be below PHYS_BASE.
+   Returns the byte value if successful, -1 if a segfault
+   occurred. */
+static int
+get_user (const byte_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+  return result;
+}
+
+/* Writes BYTE to user address UDST.
+   UDST must be below PHYS_BASE.
+   Returns true if successful, false if a segfault occurred. */
+static bool
+put_user (byte_t *udst, byte_t byte)
+{
+  int error_code;
+  asm ("movl $1f, %0; movb %b2, %1; 1:"
+       : "=&a" (error_code), "=m" (*udst) : "q" (byte));
+  return error_code != -1;
+}
+
 
 /* Checks if addr is a valid user address. Helper function for 
    is_valid_nbyte_ptr and is_valid_string. */
 static bool 
-is_valid_addr (const void *addr) 
+is_valid_addr (byte_t *addr, bool writable) 
 {
-  return addr != NULL 
-      && is_user_vaddr (addr)
-      && pagedir_get_page (thread_current ()->pagedir, addr) != NULL;
-      
+  return addr != NULL && is_user_vaddr (addr)
+         && (writable ? put_user (addr, 1) : get_user (addr) != -1);
 }
 
 /* Checks if address [ptr, ptr + n - 1] is valid. */
 static bool
-is_valid_nbyte_ptr (const void *ptr, size_t n) 
+is_valid_nbyte_ptr (byte_t *ptr, size_t n, bool writable) 
 {
-  return is_valid_addr (ptr) && is_valid_addr (ptr + n - 1);
+  for (size_t i = 0; i < n; i += PGSIZE)
+    {
+      if (!is_valid_addr (ptr + i, writable))
+        return false;
+    }
+  return is_valid_addr (ptr + n - 1, writable);
 }
 
 /* Checks if a string is valid. */
 static bool
 is_valid_string (const char *str) 
 {
-  if (!is_valid_addr (str))
+  byte_t *addr = (byte_t *) str;
+  if (!is_valid_addr (addr, false))
     return false;
   
   while (true) 
     {
-      if (!is_valid_addr (str))
+      if (!is_valid_addr (addr, false))
         return false;
-      if (*str == '\0')
+      if (*addr == '\0')
         break;
-      str++;
+      addr++;
     }
   return true;
 }

@@ -164,20 +164,22 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  #ifndef VM
-  print_page_fault_stats_and_kill (f, fault_addr, not_present, write, user);
-  #else
+  /* Caused by kernel */
+  if (!user)
+    {
+      /* Must from system calls */
+      f->eip = (void (*) (void)) f->eax;
+      f->eax = -1;
+      return;
+    }
   /* Not present: load page from supplemental page table. */
   if (not_present)
     {
-      if (!load_page_from_spt (fault_addr))
-        {
-           print_page_fault_stats_and_kill (f, fault_addr, not_present,
-                                           write, user);
-        }
+      if (load_page_from_spt (fault_addr)) 
+        return;
+
+      print_page_fault_stats_and_kill (f, fault_addr, not_present,
+           write, user);
     }
   /* Rights violation: kill process. */
   else
@@ -185,6 +187,5 @@ page_fault (struct intr_frame *f)
       print_page_fault_stats_and_kill (f, fault_addr, not_present,
                                            write, user);
     }
-  #endif
 }
 
