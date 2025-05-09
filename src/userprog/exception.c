@@ -124,6 +124,14 @@ print_page_fault_stats_and_kill (struct intr_frame *f, void *fault_addr,
   kill (f);
 }
 
+/* Handle bad reference from system call */
+static void
+handle_syscall_bad_ref (struct intr_frame *f) 
+{
+  f->eip = (void (*) (void)) f->eax;
+  f->eax = -1;
+}
+
 /** Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -164,26 +172,27 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* Caused by kernel */
-  if (!user)
-    {
-      /* Must from system calls */
-      f->eip = (void (*) (void)) f->eax;
-      f->eax = -1;
-      return;
-    }
   /* Not present: load page from supplemental page table. */
   if (not_present)
     {
       if (load_page_from_spt (fault_addr)) 
         return;
-
+      if (!user)
+        {
+          handle_syscall_bad_ref (f);
+          return;
+        }
       print_page_fault_stats_and_kill (f, fault_addr, not_present,
            write, user);
     }
   /* Rights violation: kill process. */
   else
     {
+      if (!user)
+        {
+          handle_syscall_bad_ref (f);
+          return;
+        }
       print_page_fault_stats_and_kill (f, fault_addr, not_present,
                                            write, user);
     }

@@ -170,14 +170,13 @@ syscall_read (int fd, void *buffer, unsigned size)
   int bytes_read = file_read (file, buffer, size);
   lock_release (&filesys_lock);
   page_set_pinned (buffer, size, false);
-  printf ("read finished!\n");
   return bytes_read;
 }
 
 static int 
 syscall_write (int fd, const void *buffer, unsigned size) 
 {
-  if (!is_valid_nbyte_ptr ((byte_t *) buffer, size, true))
+  if (!is_valid_nbyte_ptr ((byte_t *) buffer, size, false))
       syscall_exit (-1);
   
   if (fd == STDOUT_FILENO)
@@ -375,7 +374,7 @@ static bool
 is_valid_addr (byte_t *addr, bool writable) 
 {
   return addr != NULL && is_user_vaddr (addr)
-         && (writable ? put_user (addr, 1) : get_user (addr) != -1);
+         && (writable ? put_user (addr, 'x') : get_user (addr) != -1);
 }
 
 /* Checks if address [ptr, ptr + n - 1] is valid. */
