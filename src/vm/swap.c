@@ -7,9 +7,22 @@
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 
-static struct bitmap *swap_table;
-static struct lock swap_lock;
-static struct block *swap_block;
+/** The swap subsystem organizes the swap block device as a bitmap
+   of slots. Each slot is a page-sized chunk of the swap device. It
+   provides a layer of abstraction over the swap block device, enabling
+   page-level access without operating on the block device sectors.
+
+   swap_init () are called in threads/init.c.
+   swap_write () is called in vm/frame.c when a page is evicted from
+   memory to swap. It returns the slot index of the swap device where the page
+   was written, which is then stored in the page's supplemental page table entry.
+   swap_read () is called on page fault for swap-backed pages.
+   swap_free () is called in suppagedir_destroy () to free the swap slot
+   when the process exits. */
+
+static struct bitmap *swap_table;  /* Bitmap of swap slots, false = free */
+static struct lock swap_lock;      /* Lock for swap table access */
+static struct block *swap_block;   /* Swap block device */
 
 static const size_t SECTORS_PER_PAGE = PGSIZE / BLOCK_SECTOR_SIZE;
 
@@ -49,7 +62,8 @@ swap_write (void *frame)
   return (block_sector_t) slot;
 }
 
-/* Read a page back from swap slot into frame. */
+/* Read a page back from swap slot into frame. The slot will be
+   marked as free in the swap table. */
 void 
 swap_read (block_sector_t slot, void *frame) 
 {

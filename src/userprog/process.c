@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <hash.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -18,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "vm/page.h"
 #include "lib/string.h"
 #include "threads/synch.h"   
 
@@ -564,6 +566,15 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
 /** load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
+static bool eager_load_page (size_t page_read_bytes, 
+                                  size_t page_zero_bytes,
+                                  struct file *file, uint8_t *upage, 
+                                  bool writable);
+static bool lazy_load_page (struct hash *spt, uint8_t *upage,
+                                  struct file *file, off_t ofs,
+                                  size_t read_bytes, size_t zero_bytes,
+                                  bool writable);
+
 
 /** Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -641,26 +652,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL) {
+      #ifndef VM
+      if (!eager_load_page(page_read_bytes, page_zero_bytes,
+                              file, upage, writable))
+      #else
+      if (!lazy_load_page (&thread_current ()->proc_info->sup_page_table,
+                              upage, file, ofs, page_read_bytes,
+                              page_zero_bytes, writable))
+      #endif
         return false;
-      }
-
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -676,15 +676,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char **argv)
 {
-  uint8_t *kpage;
+  uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
   bool success = false;
   int argc = 0;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  #ifndef VM
+  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage == NULL) 
-  {
-    return false; 
-  }
+    {
+      return false; 
+    }
     
   success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
   if (!success) 
@@ -692,6 +693,12 @@ setup_stack (void **esp, char **argv)
       palloc_free_page (kpage);
       return false; 
     }
+  #else
+  if (!suppagedir_install_zero_page (
+        &thread_current ()->proc_info->sup_page_table, upage, true))
+    return false;
+  #endif
+
   *esp = PHYS_BASE;
 
   for (; argv[argc] != NULL; argc++);
@@ -745,4 +752,42 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+/* Actually allocate a page from user pool and load content from file
+   into it. */
+static bool
+eager_load_page (size_t page_read_bytes, size_t page_zero_bytes,
+                      struct file *file, uint8_t *upage, bool writable)
+{
+  /* Get a page of memory. */
+  uint8_t *kpage = palloc_get_page (PAL_USER);
+  if (kpage == NULL) 
+    return false;
+  
+  /* Load this page. */
+  if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+    {
+      palloc_free_page (kpage);
+      return false; 
+    }
+  memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+  /* Add the page to the process's address space. */
+  if (!install_page (upage, kpage, writable)) 
+    {
+      palloc_free_page (kpage);
+      return false; 
+    }
+}
+
+/* Lazy load page. */
+static bool
+lazy_load_page (struct hash *spt, uint8_t *upage,
+                      struct file *file, off_t ofs,
+                      size_t read_bytes, size_t zero_bytes,
+                      bool writable)
+{
+  return suppagedir_install_bin_page (spt, upage, file, ofs,
+                              read_bytes, zero_bytes, writable);
 }

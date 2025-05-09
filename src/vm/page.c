@@ -1,8 +1,8 @@
 /* vm/page.c */
 #include "vm/page.h"
-#include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "vm/frame.h"
@@ -10,7 +10,7 @@
 #include <string.h>
 
 /** Each process has a Supplementart Page Table (SPT), which
-   is a hash table mapping upage (VPN) to a sup_page_entry struct, 
+   is a hash table mapping upage (VPN) to a sup_page_entry struct,
    stored in the thread's proc_info.
 
    SPT is initialized via suppagedir_init () in start_process ()
@@ -45,14 +45,16 @@ suppagedir_init (struct hash *spt)
   hash_init (spt, page_hash, page_less, NULL);
 }
 
-/* Create and insert a new page table entry for virtual page upage. */
-bool 
-suppagedir_add_page (struct hash *spt, void *upage,
-                          struct file *file, off_t ofs,
-                          size_t read_bytes, size_t zero_bytes,
-                          bool writable) {
+/* Create and insert a new supplementary page table entry for 
+   file-backed page upage. */
+bool suppagedir_install_bin_page(struct hash *spt, void *upage,
+                                 struct file *file, off_t ofs,
+                                 size_t read_bytes, size_t zero_bytes,
+                                 bool writable) 
+{
   struct sup_page_entry *spe = malloc (sizeof *spe);
-  if (!spe) return false;
+  if (!spe)
+    return false;
   spe->upage = upage;
   spe->type = PAGE_BIN;
   spe->file = file;
@@ -62,6 +64,26 @@ suppagedir_add_page (struct hash *spt, void *upage,
   spe->writable = writable;
   spe->swap_slot = (block_sector_t) -1;
   hash_insert (spt, &spe->h_elem);
+  return true;
+}
+
+/* Create and insert a new supplementary page table entry for
+   zeroed page upage. */
+bool suppagedir_install_zero_page (struct hash *spt, void *upage, 
+                                   bool writable)
+{
+  struct sup_page_entry *spe = malloc (sizeof *spe);
+  if (!spe)
+      return false;
+  spe->upage = upage;
+  spe->type = PAGE_ZERO;
+  spe->file = NULL;
+  spe->ofs = 0;
+  spe->read_bytes = 0;
+  spe->zero_bytes = 0;
+  spe->writable = writable;
+  spe->swap_slot = (block_sector_t) -1;
+  hash_insert(spt, &spe->h_elem);
   return true;
 }
 
@@ -91,7 +113,7 @@ load_page_from_spt (void *fault_addr)
   /* Fill frame from backing store */
   /* Zeroed page */
   if (spe->type == PAGE_ZERO) 
-      memset(kpage, 0, PGSIZE);
+    memset(kpage, 0, PGSIZE);
 
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
@@ -105,8 +127,8 @@ load_page_from_spt (void *fault_addr)
           return false;
         }
       memset(kpage + spe->read_bytes, 0, spe->zero_bytes);
-    } 
-  
+    }
+
   /* Swapped out */
   else if (spe->type == PAGE_SWAP) 
     {
@@ -118,7 +140,7 @@ load_page_from_spt (void *fault_addr)
   return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
 }
 
-/* Destroy the supplemental page table, freeing entries and 
+/* Destroy the supplemental page table, freeing entries and
    swap slots. */
 void 
 suppagedir_destroy (struct hash *spt) 
