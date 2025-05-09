@@ -54,7 +54,7 @@ swap_write (void *frame)
     }
 
   /* Write sectors to swap device */
-  for (int i = 0; i < SECTORS_PER_PAGE; i++)
+  for (size_t i = 0; i < SECTORS_PER_PAGE; i++)
     block_write (swap_block, 
                  slot * SECTORS_PER_PAGE + i, 
                  frame + i * BLOCK_SECTOR_SIZE);
@@ -68,7 +68,7 @@ void
 swap_read (block_sector_t slot, void *frame) 
 {
   lock_acquire (&swap_lock);
-  for (int i = 0; i < SECTORS_PER_PAGE; i++)
+  for (size_t i = 0; i < SECTORS_PER_PAGE; i++)
     block_read (swap_block, 
                 slot * SECTORS_PER_PAGE + i, 
                 frame + i * BLOCK_SECTOR_SIZE);

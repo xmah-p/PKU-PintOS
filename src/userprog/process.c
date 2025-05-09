@@ -1,4 +1,5 @@
 #include "userprog/process.h"
+
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
@@ -6,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hash.h>
+
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -19,9 +21,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
-#include "vm/page.h"
-#include "lib/string.h"
 #include "threads/synch.h"   
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (struct proc_info *proc_info, 
@@ -204,7 +205,7 @@ start_process (void *proc_info_)
 
   proc_info->ref_count++;    /* Increment reference count. */
 
-  /* Initialize supplementary page table. */
+  /* Initialize supplemental page table. */
   suppagedir_init (&proc_info->sup_page_table);
 
   /* Initialize interrupt frame and load executable. */
@@ -325,7 +326,7 @@ process_exit (int status)
   prog_name = proc_info->argv[0];
   printf("%s: exit(%d)\n", prog_name, status);
 
-  supppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
+  suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
 
   /* Allow writes to the executable file. */
   executable = proc_info->executable;
@@ -565,16 +566,17 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
 
 /** load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+static bool install_page (void *upage, void *kpage, bool writable) UNUSED;
+
 static bool eager_load_page (size_t page_read_bytes, 
                                   size_t page_zero_bytes,
                                   struct file *file, uint8_t *upage, 
-                                  bool writable);
+                                  bool writable) UNUSED;
+
 static bool lazy_load_page (struct hash *spt, uint8_t *upage,
                                   struct file *file, off_t ofs,
                                   size_t read_bytes, size_t zero_bytes,
                                   bool writable);
-
 
 /** Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -677,10 +679,10 @@ static bool
 setup_stack (void **esp, char **argv)
 {
   uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-  bool success = false;
   int argc = 0;
-
+  
   #ifndef VM
+  bool success = false;
   uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage == NULL) 
     {
@@ -779,6 +781,7 @@ eager_load_page (size_t page_read_bytes, size_t page_zero_bytes,
       palloc_free_page (kpage);
       return false; 
     }
+  return true;
 }
 
 /* Lazy load page. */

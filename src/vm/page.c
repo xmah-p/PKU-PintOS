@@ -1,6 +1,7 @@
 /* vm/page.c */
 #include "vm/page.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
@@ -45,7 +46,7 @@ suppagedir_init (struct hash *spt)
   hash_init (spt, page_hash, page_less, NULL);
 }
 
-/* Create and insert a new supplementary page table entry for 
+/* Create and insert a new supplemental page table entry for 
    file-backed page upage. */
 bool suppagedir_install_bin_page(struct hash *spt, void *upage,
                                  struct file *file, off_t ofs,
@@ -67,7 +68,7 @@ bool suppagedir_install_bin_page(struct hash *spt, void *upage,
   return true;
 }
 
-/* Create and insert a new supplementary page table entry for
+/* Create and insert a new supplemental page table entry for
    zeroed page upage. */
 bool suppagedir_install_zero_page (struct hash *spt, void *upage, 
                                    bool writable)
@@ -123,7 +124,7 @@ load_page_from_spt (void *fault_addr)
       if (r != spe->read_bytes) 
         {
           /* read error */
-          palloc_free_page(kpage);
+          palloc_free_page (kpage);
           return false;
         }
       memset(kpage + spe->read_bytes, 0, spe->zero_bytes);
@@ -138,6 +139,19 @@ load_page_from_spt (void *fault_addr)
 
   /* Install page into page table */
   return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+}
+
+/* Set the swap slot in the supplemental page table entry. */
+void
+suppagedir_set_page_swapped (struct hash *spt, void *upage,
+                              block_sector_t swap_slot) 
+{
+  struct sup_page_entry *spe = suppagedir_find (spt, upage);
+  if (spe) 
+    {
+      spe->type = PAGE_SWAP;
+      spe->swap_slot = swap_slot;
+    }
 }
 
 /* Destroy the supplemental page table, freeing entries and

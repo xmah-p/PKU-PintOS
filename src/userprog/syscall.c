@@ -11,49 +11,23 @@
 #include "userprog/process.h"
 #include "devices/input.h"
 #include "lib/string.h"
+#include "vm/frame.h"
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 
 static void syscall_handler (struct intr_frame *);
 
-/* Checks if addr is a valid user address. Helper function for 
-   is_valid_nbyte_ptr and is_valid_string. */
-static bool 
-is_valid_addr (const void *addr) 
-{
-  return addr != NULL 
-      && is_user_vaddr (addr)
-      && pagedir_get_page (thread_current ()->pagedir, addr) != NULL;
-      
-}
+/* Helper functions. */
 
-/* Checks if address [ptr, ptr + n - 1] is valid. */
-static bool
-is_valid_nbyte_ptr (const void *ptr, size_t n) 
-{
-  return is_valid_addr (ptr) && is_valid_addr (ptr + n - 1);
-}
-
-/* Checks if a string is valid. */
-static bool
-is_valid_string (const char *str) 
-{
-  if (!is_valid_addr (str))
-    return false;
-  
-  while (true) 
-  {
-    if (!is_valid_addr (str))
-      return false;
-    if (*str == '\0')
-      break;
-    str++;
-  }
-  return true;
-}
+static bool is_valid_addr (const void *addr);
+static bool is_valid_nbyte_ptr (const void *ptr, size_t n);
+static bool is_valid_string (const char *str);
 
 static struct file *get_file (int fd);
+
+static void page_set_pinned (const void *buffer, unsigned size, bool pinned);
+
 
 /* System call implementations. */
 
@@ -174,17 +148,21 @@ syscall_read (int fd, void *buffer, unsigned size)
   if (fd == STDIN_FILENO)
     {
       unsigned i;
+      page_set_pinned (buffer, size, true);
       for (i = 0; i < size; i++)
         {
           char c = input_getc ();
           ((char *) buffer)[i] = c;
         }
+      page_set_pinned (buffer, size, false);
       return i;
     }
 
   struct file *file = get_file (fd);
   lock_acquire (&filesys_lock);
+  page_set_pinned (buffer, size, true);
   int bytes_read = file_read (file, buffer, size);
+  page_set_pinned (buffer, size, false);
   lock_release (&filesys_lock);
   return bytes_read;
 }
@@ -192,19 +170,23 @@ syscall_read (int fd, void *buffer, unsigned size)
 static int 
 syscall_write (int fd, const void *buffer, unsigned size) 
 {
-  if (!is_valid_nbyte_ptr(buffer, size))
+  if (!is_valid_nbyte_ptr (buffer, size))
       syscall_exit (-1);
   
   if (fd == STDOUT_FILENO)
     {
+      page_set_pinned (buffer, size, true);
       putbuf (buffer, size);
+      page_set_pinned (buffer, size, false);
       return size;
     }
     
   struct file *file = get_file (fd);
 
   lock_acquire (&filesys_lock);
+  page_set_pinned (buffer, size, true);
   int bytes_written = file_write (file, buffer, size);
+  page_set_pinned (buffer, size, false);
   lock_release (&filesys_lock);
   return bytes_written;
 }
@@ -352,4 +334,52 @@ get_file (int fd)
       syscall_exit (-1);
   
   return file;
+}
+
+
+/* Checks if addr is a valid user address. Helper function for 
+   is_valid_nbyte_ptr and is_valid_string. */
+static bool 
+is_valid_addr (const void *addr) 
+{
+  return addr != NULL 
+      && is_user_vaddr (addr)
+      && pagedir_get_page (thread_current ()->pagedir, addr) != NULL;
+      
+}
+
+/* Checks if address [ptr, ptr + n - 1] is valid. */
+static bool
+is_valid_nbyte_ptr (const void *ptr, size_t n) 
+{
+  return is_valid_addr (ptr) && is_valid_addr (ptr + n - 1);
+}
+
+/* Checks if a string is valid. */
+static bool
+is_valid_string (const char *str) 
+{
+  if (!is_valid_addr (str))
+    return false;
+  
+  while (true) 
+    {
+      if (!is_valid_addr (str))
+        return false;
+      if (*str == '\0')
+        break;
+      str++;
+    }
+  return true;
+}
+
+static void 
+page_set_pinned (const void *buffer, unsigned size, bool pinned)
+{
+  for (unsigned i = 0; i < size; i += PGSIZE)
+    {
+      void *upage = pg_round_down (buffer + i);
+      void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
+      frame_set_pinned (kpage, pinned);
+    }
 }

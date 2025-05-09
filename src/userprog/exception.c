@@ -170,7 +170,7 @@ page_fault (struct intr_frame *f)
   #ifndef VM
   print_page_fault_stats_and_kill (f, fault_addr, not_present, write, user);
   #else
-  /* Not present: load page from supplementary page table. */
+  /* Not present: load page from supplemental page table. */
   if (not_present)
     {
       if (!load_page_from_spt (fault_addr))

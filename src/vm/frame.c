@@ -7,6 +7,8 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
+#include "vm/page.h"
 #include "devices/block.h"
 
 static struct hash frame_map;    /* Hash table: key = kpage */
@@ -112,8 +114,8 @@ frame_alloc (void *upage)
       extern block_sector_t swap_write (void *frame_entry); 
       block_sector_t slot = swap_write (victim->kpage);
       /* Update victim's supplemental page entry */
-      struct thread *vict = victim->owner;
-      vm_set_page_swapped(vict, victim->upage, slot);
+      struct hash *spt = &victim->owner->proc_info->sup_page_table;
+      suppagedir_set_page_swapped (spt, victim->upage, slot);
     }
 
   /* Remove old mapping */

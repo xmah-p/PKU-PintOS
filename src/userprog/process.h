@@ -1,6 +1,8 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
 
+#include <hash.h>
+
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "filesys/file.h"
