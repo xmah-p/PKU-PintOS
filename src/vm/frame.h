@@ -20,10 +20,12 @@ struct frame_entry
 /* Initializes the global frame table (call in thread_init). */
 void frame_init (void);
 
-/* Allocates a user frame for user page 'upage', evicting if needed. */
+/* Allocates a user frame for user page 'upage', evicting if needed.
+   Called in load_page_from_spt () */
 void *frame_alloc (void *upage);
 
-/* Frees a frame when a process exits (unmaps and releases). */
+/* Frees a frame when a process exits (unmaps and releases). 
+   Called in destroy_spe () */
 void frame_free (void *kpage);
 
 /* Pins/unpins a frame to prevent/allow eviction. */

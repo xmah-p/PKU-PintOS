@@ -57,7 +57,7 @@ static struct frame_entry *
 pick_victim_frame (void) 
 {
   if (clock_hand == NULL)
-      clock_hand = list_begin (&frame_list);
+    clock_hand = list_begin (&frame_list);
 
   /* Loop until we find a non-pinned, not-recently-used frame */
   while (true) 
@@ -65,7 +65,7 @@ pick_victim_frame (void)
       if (clock_hand == list_end (&frame_list))
           clock_hand = list_begin (&frame_list);
       struct frame_entry *fe = list_entry (clock_hand, 
-                                          struct frame_entry, l_elem);
+                                           struct frame_entry, l_elem);
       /* Skip pinned frames */
       if (!fe->pinned) 
         {
@@ -83,6 +83,7 @@ pick_victim_frame (void)
 void *
 frame_alloc (void *upage) 
 {
+  ASSERT (is_user_vaddr (upage));
   lock_acquire (&frame_lock);
 
   /* Try to get a free page from user pool */
@@ -113,6 +114,10 @@ frame_alloc (void *upage)
   if (dirty) 
     {
       block_sector_t slot = swap_write (victim->kpage);
+      #ifndef VM
+      printf ("frame_alloc: evicting dirty page %p to swap slot %d\n",
+              victim->upage, slot);
+      #endif
       /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
       suppagedir_set_page_swapped (spt, victim->upage, slot);

@@ -324,8 +324,6 @@ process_exit (int status)
   prog_name = proc_info->argv[0];
   printf("%s: exit(%d)\n", prog_name, status);
 
-  suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
-
   /* Allow writes to the executable file. */
   executable = proc_info->executable;
   lock_acquire (&filesys_lock);
@@ -346,6 +344,7 @@ process_exit (int status)
       e = list_next (e);
       free_proc_info_refcnt (child_proc_info);
     }
+  suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
   lock_release (&proc_info->lock);
 
   sema_up (&proc_info->wait_sema);    /* Notify parent thread */

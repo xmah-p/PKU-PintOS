@@ -441,6 +441,11 @@ docker run -it --rm --name pintos --mount type=bind,source=D:/wksp/pintos,target
 # 或者
 docker exec -it pintos bash
 
+pintos --filesys-size=2 -p build/tests/vm/page-parallel -a pp -- -f -q run 'pp'
+
+# at build/
+pintos --gdb -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/page-parallel -a page-parallel -p tests/vm/child-linear -a child-linear --swap-size=4 -- -q  -f run page-parallel < /dev/null
+
 cd pintos/src/vm/; make
 
 cd build;
@@ -460,7 +465,8 @@ rm build/tests/vm/page-parallel.output; make build/tests/vm/page-parallel.result
 
 code src/userprog/build/tests/userprog/syn-read.output
 
-make clean; make grade > ~/pintos/grade.txt  # run all tests and grade
+make clean; 
+make grade > ~/pintos/grade.txt  # run all tests and grade
 ```
 
 类型：清除 void *，为 kpage 设置类型。

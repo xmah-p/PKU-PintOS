@@ -124,30 +124,43 @@ load_page_from_spt (void *fault_addr)
       return false;
     }
 
+  /* Set the frame as pinned */
+  frame_set_pinned (kpage, true);
+
   /* Fill frame from backing store */
   /* Zeroed page */
   if (spe->type == PAGE_ZERO) 
     {
-      memset(kpage, 0, PGSIZE);
+      memset (kpage, 0, PGSIZE);
       /* Install page into page table */
-      return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+      frame_set_pinned (kpage, false);
+      /* Install page into page table and set its dirty bit */
+      if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
+        return false;
+      pagedir_set_dirty (t->pagedir, upage, true);
+      return true;
     }
 
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
     {
+      #ifndef VM
+      printf ("load_page_from_spt: loading %p from file\n", upage);
+      #endif
       lock_acquire (&filesys_lock);
       file_seek (spe->file, spe->ofs);
       size_t r = file_read (spe->file, kpage, spe->read_bytes);
-      lock_release (&filesys_lock);
       if (r != spe->read_bytes) 
         {
           /* read error */
           palloc_free_page (kpage);
+          frame_set_pinned (kpage, false);
           printf ("load_page_from_spt: read error for %p\n", upage);
           return false;
         }
+      lock_release (&filesys_lock);
       memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
+      frame_set_pinned (kpage, false);
       /* Install page into page table */
       return pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
     }
@@ -155,8 +168,13 @@ load_page_from_spt (void *fault_addr)
   /* Swapped out */
   else if (spe->type == PAGE_SWAP) 
     {
+      #ifndef VM
+      printf ("load_page_from_spt: loading %p from swap slot %d\n",
+             upage, spe->swap_slot);
+      #endif
       swap_read (spe->swap_slot, kpage);
       spe->swap_slot = (block_sector_t) -1;
+      frame_set_pinned (kpage, false);
 
       /* Install page into page table and set its dirty bit */
       if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
@@ -188,13 +206,20 @@ static void destroy_spe (struct hash_elem *e, void *aux UNUSED);
 void 
 suppagedir_destroy (struct hash *spt) 
 {
-  hash_apply (spt, destroy_spe);
+  hash_destroy (spt, destroy_spe);
 }
 
 static void
 destroy_spe (struct hash_elem *e, void *aux UNUSED)
 {
   struct sup_page_entry *spe = hash_entry (e, struct sup_page_entry, h_elem);
+  void *kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
+  if (kpage) 
+    {
+      /* Free the frame */
+      frame_free (kpage);
+      pagedir_clear_page (thread_current ()->pagedir, spe->upage);
+    }
   /* Free swap slot if used */
   if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
     swap_free (spe->swap_slot);
