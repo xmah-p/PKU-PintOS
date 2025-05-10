@@ -165,11 +165,11 @@ syscall_read (int fd, void *buffer, unsigned size)
     }
 
   struct file *file = get_file (fd);
-  page_set_pinned (buffer, size, true);
   lock_acquire (&filesys_lock);
+  page_set_pinned (buffer, size, true);
   int bytes_read = file_read (file, buffer, size);
-  lock_release (&filesys_lock);
   page_set_pinned (buffer, size, false);
+  lock_release (&filesys_lock);
   return bytes_read;
 }
 
@@ -189,11 +189,11 @@ syscall_write (int fd, const void *buffer, unsigned size)
     
   struct file *file = get_file (fd);
 
-  page_set_pinned (buffer, size, true);
   lock_acquire (&filesys_lock);
+  page_set_pinned (buffer, size, true);
   int bytes_written = file_write (file, buffer, size);
-  lock_release (&filesys_lock);
   page_set_pinned (buffer, size, false);
+  lock_release (&filesys_lock);
   return bytes_written;
 }
 
