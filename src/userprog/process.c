@@ -78,10 +78,7 @@ init_proc_info (struct proc_info *proc_info, char **argv)
   sema_init (&proc_info->wait_sema, 0);
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
-  #ifdef VM
-  /* Initialize supplemental page table. */
   suppagedir_init (&proc_info->sup_page_table);
-  #endif
   proc_info->ref_count = 1;
 }
 
@@ -655,7 +652,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      #ifndef VM
+      #ifdef VM
       if (!eager_load_page(page_read_bytes, page_zero_bytes,
                               file, ofs, upage, writable))
       #else
@@ -682,7 +679,7 @@ setup_stack (void **esp, char **argv)
   uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
   int argc = 0;
   
-  #ifndef VM
+  #ifdef VM
   bool success = false;
   uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage == NULL) 
