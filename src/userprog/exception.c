@@ -175,13 +175,13 @@ page_fault (struct intr_frame *f)
   /* Not present: load page from supplemental page table. */
   if (not_present)
     {
+      if (load_page_from_spt (fault_addr)) 
+        return;
       if (!user)
         {
           handle_syscall_bad_ref (f);
           return;
         }
-      if (load_page_from_spt (fault_addr)) 
-        return;
       print_page_fault_stats_and_kill (f, fault_addr, not_present,
            write, user);
     }
