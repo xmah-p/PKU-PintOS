@@ -113,9 +113,11 @@ load_page_from_spt (void *fault_addr)
   struct thread *t = thread_current ();
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
+
   lock_acquire (spt_lock);
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
   lock_release (spt_lock);
+
   if (!spe)
     {
       /* No entry in SPT: page fault error */
@@ -140,14 +142,13 @@ load_page_from_spt (void *fault_addr)
   if (spe->type == PAGE_ZERO) 
     {
       memset (kpage, 0, PGSIZE);
-      /* Install page into page table */
-      frame_set_pinned (kpage, false);
       /* Install page into page table and set its dirty bit */
       if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
         return false;
-
+      
       pagedir_set_dirty (t->pagedir, upage, true);
       lock_release (&spe->lock);
+      frame_set_pinned (kpage, false);
       return true;
     }
 
@@ -166,15 +167,15 @@ load_page_from_spt (void *fault_addr)
         {
           /* read error */
           palloc_free_page (kpage);
-          frame_set_pinned (kpage, false);
           lock_release (&spe->lock);
           lock_release (&filesys_lock);
+          frame_set_pinned (kpage, false);
           printf ("load_page_from_spt: read error for %p\n", upage);
           return false;
         }
+      memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
       lock_release (&spe->lock);
       lock_release (&filesys_lock);
-      memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
       frame_set_pinned (kpage, false);
       /* Install page into page table */
       /* No need to worry about spe->writable race, because there
@@ -239,15 +240,16 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
   struct sup_page_entry *spe = hash_entry (e, struct sup_page_entry, h_elem);
   lock_acquire (&spe->lock);
   void *kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
-  if (kpage) 
-    {
-      /* Free the frame */
-      frame_free (kpage);
-      pagedir_clear_page (thread_current ()->pagedir, spe->upage);
-    }
+
   /* Free swap slot if used */
   if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
     swap_free (spe->swap_slot);
   lock_release (&spe->lock);
+  if (kpage) 
+  {
+    /* Free the frame */
+    frame_free (kpage);
+    pagedir_clear_page (thread_current ()->pagedir, spe->upage);
+  }
   free (spe);
 }
