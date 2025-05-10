@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include "devices/block.h"
 #include "filesys/file.h"
+#include "threads/synch.h"
 
 /* PAGE_BIN: Backed by a file (e.g., executable, mmap)
    PAGE_ZERO: Zeroed page (e.g., stack, heap)
@@ -17,7 +18,7 @@ enum page_type { PAGE_BIN, PAGE_ZERO, PAGE_SWAP };
 struct sup_page_entry 
   {
     struct hash_elem h_elem;
-    void *upage; /* User virtual page (key) */
+    void *upage;               /* User virtual page (key) */
     enum page_type type;
     struct file *file;        /* Backing file (for PAGE_BIN) */
     off_t ofs;                /* Offset in file */
@@ -25,6 +26,7 @@ struct sup_page_entry
     size_t zero_bytes;        /* Bytes to zero */
     block_sector_t swap_slot; /* Swap slot index if PAGE_SWAP, else -1 */
     bool writable;
+    struct lock lock;                /* Lock for synchronization */
   };
 
 void suppagedir_init (struct hash *spt);

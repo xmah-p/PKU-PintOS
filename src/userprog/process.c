@@ -79,6 +79,7 @@ init_proc_info (struct proc_info *proc_info, char **argv)
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
   suppagedir_init (&proc_info->sup_page_table);
+  lock_init (&proc_info->spt_lock);
   proc_info->ref_count = 1;
 }
 
@@ -344,7 +345,9 @@ process_exit (int status)
       e = list_next (e);
       free_proc_info_refcnt (child_proc_info);
     }
+  lock_acquire (&proc_info->spt_lock);
   suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
+  lock_release (&proc_info->spt_lock);
   lock_release (&proc_info->lock);
 
   sema_up (&proc_info->wait_sema);    /* Notify parent thread */
@@ -693,8 +696,12 @@ setup_stack (void **esp, char **argv)
       return false; 
     }
   #else
-  if (!suppagedir_install_zero_page (
-        &thread_current ()->proc_info->sup_page_table, upage, true))
+  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
+  lock_acquire (spt_lock);
+  bool install_success = suppagedir_install_zero_page (
+        &thread_current ()->proc_info->sup_page_table, upage, true);
+  lock_release (spt_lock);
+  if (!install_success)
     return false;
   #endif
 
@@ -788,6 +795,10 @@ lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file,
                 off_t ofs, uint8_t *upage, bool writable)
 {
   struct hash *spt = &thread_current ()->proc_info->sup_page_table;
-  return suppagedir_install_bin_page (spt, upage, file, ofs,
+  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
+  lock_acquire (spt_lock);
+  bool success = suppagedir_install_bin_page (spt, upage, file, ofs,
                               read_bytes, zero_bytes, writable);
+  lock_release (spt_lock);
+  return success;
 }

@@ -52,7 +52,9 @@ frame_init (void)
   clock_hand = NULL;
 }
 
-/* Choose a victim frame using clock algorithm (skip pinned). */
+/* Choose a victim frame using clock algorithm (skip pinned). 
+   The victim frame will be pinned.
+   Should acquire and release frame_lock before and after! */
 static struct frame_entry *
 pick_victim_frame (void) 
 {
@@ -71,7 +73,11 @@ pick_victim_frame (void)
         {
           /* Check accessed bit: pick if not set */
           if (!pagedir_is_accessed(fe->owner->pagedir, fe->upage))
-              return fe;  /* choose this victim */
+            {
+              /* Pin and return */
+              fe->pinned = true;
+              return fe;
+            }
           /* Otherwise, give a second chance */
           pagedir_set_accessed(fe->owner->pagedir, fe->upage, false);
         }
@@ -120,12 +126,15 @@ frame_alloc (void *upage)
       #endif
       /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
+      struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
+      lock_acquire (spt_lock);
       suppagedir_set_page_swapped (spt, victim->upage, slot);
+      lock_release (spt_lock);
     }
 
   /* Remove old mapping */
   pagedir_clear_page (victim->owner->pagedir, victim->upage);
-
+  
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
@@ -136,20 +145,18 @@ frame_alloc (void *upage)
   return kpage;
 }
 
-/* Lookup frame_entry by its kernel address (kpage). Synchronized. */
+/* Lookup frame_entry by its kernel address (kpage).
+   Should acquire and release frame_lock before and after! */
 static struct frame_entry *
 frame_find (void *kpage) 
 {
-  lock_acquire (&frame_lock);
   struct frame_entry key_fe = { .kpage = kpage };
   struct hash_elem *he = hash_find (&frame_map, &key_fe.h_elem);
   if (he == NULL) 
     {
-      lock_release (&frame_lock);
       return NULL;
     }
   struct frame_entry *fe = hash_entry (he, struct frame_entry, h_elem);
-  lock_release (&frame_lock);
   return fe;
 }
 
@@ -157,10 +164,14 @@ frame_find (void *kpage)
 void 
 frame_free (void *kpage) 
 {
-  struct frame_entry *fe = frame_find (kpage);
-  if (fe == NULL) return;
-  
   lock_acquire (&frame_lock);
+  struct frame_entry *fe = frame_find (kpage);
+  if (fe == NULL)
+    {
+      lock_release (&frame_lock);
+      return;  /* Not found */
+    }
+  
   list_remove (&fe->l_elem);
   hash_delete (&frame_map, &fe->h_elem);
   palloc_free_page (kpage);
@@ -171,9 +182,13 @@ frame_free (void *kpage)
 /* Pin/unpin a frame by its kernel address. */
 void frame_set_pinned (void *kpage, bool pinned) 
 {
-  struct frame_entry *fe = frame_find (kpage);
-  if (fe == NULL) return;
   lock_acquire (&frame_lock);
+  struct frame_entry *fe = frame_find (kpage);
+  if (fe == NULL)
+    {
+      lock_release (&frame_lock);
+      return;  /* Not found */
+    }
   fe->pinned = pinned;
   lock_release (&frame_lock);
 }
