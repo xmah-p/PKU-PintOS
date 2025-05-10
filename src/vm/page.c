@@ -114,9 +114,11 @@ load_page_from_spt (void *fault_addr)
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
+  // printf ("load_page_from_spt: acquiring spt_lock\n");
   lock_acquire (spt_lock);
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
   lock_release (spt_lock);
+  // printf ("load_page_from_spt: released spt_lock\n");
 
   if (!spe)
     {
@@ -135,6 +137,7 @@ load_page_from_spt (void *fault_addr)
   /* Set the frame as pinned */
   frame_set_pinned (kpage, true);
 
+  // printf ("load_page_from_spt: acquiring spe->lock\n");
   lock_acquire (&spe->lock);
 
   /* Fill frame from backing store */
@@ -148,6 +151,7 @@ load_page_from_spt (void *fault_addr)
       
       pagedir_set_dirty (t->pagedir, upage, true);
       lock_release (&spe->lock);
+      // printf ("load_page_from_spt: released spe->lock\n");
       frame_set_pinned (kpage, false);
       return true;
     }
@@ -155,11 +159,12 @@ load_page_from_spt (void *fault_addr)
   /* Backed by file */
   else if (spe->type == PAGE_BIN) 
     {
-      #ifndef VM
-      printf ("load_page_from_spt: loading %p from file\n", upage);
-      #endif
+      // printf ("load_page_from_spt: loading %p from file\n", upage);
       lock_release (&spe->lock);
+      // printf ("load_page_from_spt: released spe->lock\n");
+      // printf ("load_page_from_spt: acquiring filesys_lock\n");
       lock_acquire (&filesys_lock);
+      // printf ("load_page_from_spt: re-acquiring spe->lock\n");
       lock_acquire (&spe->lock);
       file_seek (spe->file, spe->ofs);
       size_t r = file_read (spe->file, kpage, spe->read_bytes);
@@ -168,14 +173,18 @@ load_page_from_spt (void *fault_addr)
           /* read error */
           palloc_free_page (kpage);
           lock_release (&spe->lock);
+          // printf ("load_page_from_spt: released spe->lock\n");
           lock_release (&filesys_lock);
+          // printf ("load_page_from_spt: released filesys_lock\n");
           frame_set_pinned (kpage, false);
           printf ("load_page_from_spt: read error for %p\n", upage);
           return false;
         }
       memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
       lock_release (&spe->lock);
+      // printf ("load_page_from_spt: released spe->lock\n");
       lock_release (&filesys_lock);
+      // printf ("load_page_from_spt: released filesys_lock\n");
       frame_set_pinned (kpage, false);
       /* Install page into page table */
       /* No need to worry about spe->writable race, because there
@@ -186,13 +195,12 @@ load_page_from_spt (void *fault_addr)
   /* Swapped out */
   else if (spe->type == PAGE_SWAP) 
     {
-      #ifndef VM
-      printf ("load_page_from_spt: loading %p from swap slot %d\n",
-             upage, spe->swap_slot);
-      #endif
+      // printf ("load_page_from_spt: loading %p from swap slot %d\n",
+      //        upage, spe->swap_slot);
       swap_read (spe->swap_slot, kpage);
       spe->swap_slot = (block_sector_t) -1;
       lock_release (&spe->lock);
+      // printf ("load_page_from_spt: released spe->lock\n");
       frame_set_pinned (kpage, false);
 
       /* Install page into page table and set its dirty bit */
@@ -214,10 +222,12 @@ suppagedir_set_page_swapped (struct hash *spt, void *upage,
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
   if (spe) 
   {
+    // printf ("suppagedir_set_page_swapped: acquiring spe->lock\n");
       lock_acquire (&spe->lock);
       spe->type = PAGE_SWAP;
       spe->swap_slot = swap_slot;
       lock_release (&spe->lock);
+      // printf ("suppagedir_set_page_swapped: released spe->lock\n");
     }
 }
 
@@ -225,7 +235,8 @@ static void destroy_spe (struct hash_elem *e, void *aux UNUSED);
 
 /* Destroy the supplemental page table, freeing entries and
    swap slots. 
-   Should acquire and release spt_lock before and after! */
+   Should acquire and release BOTH frame_lock AND spt_lock 
+   before and after! */
 void 
 suppagedir_destroy (struct hash *spt) 
 {
@@ -238,6 +249,8 @@ static void
 destroy_spe (struct hash_elem *e, void *aux UNUSED)
 {
   struct sup_page_entry *spe = hash_entry (e, struct sup_page_entry, h_elem);
+
+  // printf ("destroy_spe: acquiring spe->lock\n");
   lock_acquire (&spe->lock);
   void *kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
 
@@ -245,9 +258,17 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
   if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
     swap_free (spe->swap_slot);
   lock_release (&spe->lock);
+  // printf ("destroy_spe: released spe->lock\n");
+
   if (kpage) 
   {
     /* Free the frame */
+    /* Possible deadlock point! */
+    /* At this point, we are holding spt_lock and calling frame_free ()
+       which will acquire frame lock inside. 
+       This is dangerous, we MUST make sure that there will not be any
+       situation where another thread is holding frame lock and acquiring
+       spt_lock. */
     frame_free (kpage);
     pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   }

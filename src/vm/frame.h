@@ -17,6 +17,8 @@ struct frame_entry
     bool pinned;               /* If true, do not evict */
   };
 
+struct lock frame_lock;        /* Lock for frame table */
+
 /* Initializes the global frame table (call in thread_init). */
 void frame_init (void);
 

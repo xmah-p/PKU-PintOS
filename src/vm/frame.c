@@ -14,7 +14,6 @@
 
 static struct hash frame_map;    /* Hash table: key = kpage */
 static struct list frame_list;   /* List of all frames for eviction */
-static struct lock frame_lock;   
 static struct list_elem *clock_hand;  /* Clock pointer */
 
 /** The PintOS frame table is a global hash table mapping kpage (PPN)
@@ -90,6 +89,7 @@ void *
 frame_alloc (void *upage) 
 {
   ASSERT (is_user_vaddr (upage));
+  // printf ("frame_alloc: acquiring frame_lock\n");
   lock_acquire (&frame_lock);
 
   /* Try to get a free page from user pool */
@@ -109,6 +109,7 @@ frame_alloc (void *upage)
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
       lock_release (&frame_lock);
+      // printf ("frame_alloc: released frame_lock\n");
       return kpage;
     }
 
@@ -121,20 +122,17 @@ frame_alloc (void *upage)
     {
       block_sector_t slot = swap_write (victim->kpage);
       #ifndef VM
-      printf ("frame_alloc: evicting dirty page %p to swap slot %d\n",
+      // printf ("frame_alloc: evicting dirty page %p to swap slot %d\n",
               victim->upage, slot);
       #endif
       /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
-      struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
-      lock_acquire (spt_lock);
       suppagedir_set_page_swapped (spt, victim->upage, slot);
-      lock_release (spt_lock);
     }
 
   /* Remove old mapping */
   pagedir_clear_page (victim->owner->pagedir, victim->upage);
-  
+
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
@@ -142,6 +140,7 @@ frame_alloc (void *upage)
 
   kpage = victim->kpage;
   lock_release (&frame_lock);
+  // printf ("frame_alloc: released frame_lock\n");
   return kpage;
 }
 
@@ -160,15 +159,14 @@ frame_find (void *kpage)
   return fe;
 }
 
-/* Free a frame and its entry (called when process exits). */
+/* Free a frame and its entry (called when process exits). 
+   Not synchroized! */
 void 
 frame_free (void *kpage) 
 {
-  lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
   if (fe == NULL)
-    {
-      lock_release (&frame_lock);
+    {;
       return;  /* Not found */
     }
   
@@ -176,19 +174,21 @@ frame_free (void *kpage)
   hash_delete (&frame_map, &fe->h_elem);
   palloc_free_page (kpage);
   free (fe);
-  lock_release (&frame_lock);
 }
 
 /* Pin/unpin a frame by its kernel address. */
 void frame_set_pinned (void *kpage, bool pinned) 
 {
+  // printf ("frame_set_pinned: acquiring frame_lock\n");
   lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
   if (fe == NULL)
     {
       lock_release (&frame_lock);
+      // printf ("frame_set_pinned: released frame_lock\n");
       return;  /* Not found */
     }
   fe->pinned = pinned;
   lock_release (&frame_lock);
+  // printf ("frame_set_pinned: released frame_lock\n");
 }

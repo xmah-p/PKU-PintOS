@@ -23,6 +23,7 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"   
 #include "vm/page.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (struct proc_info *proc_info, 
@@ -345,9 +346,11 @@ process_exit (int status)
       e = list_next (e);
       free_proc_info_refcnt (child_proc_info);
     }
+  lock_acquire (&frame_lock);
   lock_acquire (&proc_info->spt_lock);
   suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
   lock_release (&proc_info->spt_lock);
+  lock_release (&frame_lock);
   lock_release (&proc_info->lock);
 
   sema_up (&proc_info->wait_sema);    /* Notify parent thread */

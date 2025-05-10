@@ -513,3 +513,5 @@ palloc 也需要锁！
 [x] pt-write-code
 [x] pt-write-code2
 [x] pt-grow-bad
+
+在驱逐的时候，加 spt 锁？
