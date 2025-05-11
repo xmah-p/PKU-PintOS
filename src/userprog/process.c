@@ -550,6 +550,7 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
         }
     }
 
+  lock_release (&filesys_lock);
   /* Set up stack. */
   if (!setup_stack (esp, argv))
     goto fail;
@@ -557,7 +558,6 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  lock_release (&filesys_lock);
   return true;
 
  fail:

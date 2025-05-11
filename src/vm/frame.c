@@ -89,7 +89,9 @@ void *
 frame_alloc (void *upage) 
 {
   ASSERT (is_user_vaddr (upage));
-  // printf ("frame_alloc: acquiring frame_lock\n");
+  #ifdef DEADLOCK
+  printf ("frame_alloc: %d acquiring frame_lock\n", thread_current ()->tid);
+  #endif
   lock_acquire (&frame_lock);
 
   /* Try to get a free page from user pool */
@@ -109,7 +111,9 @@ frame_alloc (void *upage)
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
       lock_release (&frame_lock);
-      // printf ("frame_alloc: released frame_lock\n");
+      #ifdef DEADLOCK
+      printf ("frame_alloc: %d released frame_lock\n", thread_current ()->tid);
+      #endif
       return kpage;
     }
 
@@ -121,13 +125,14 @@ frame_alloc (void *upage)
   if (dirty) 
     {
       block_sector_t slot = swap_write (victim->kpage);
-      #ifndef VM
-      // printf ("frame_alloc: evicting dirty page %p to swap slot %d\n",
+      #ifdef SWAP_DEBUG
+      printf ("frame_alloc: evicting dirty page %p to swap slot %d\n",
               victim->upage, slot);
       #endif
       /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
-      suppagedir_set_page_swapped (spt, victim->upage, slot);
+      struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
+      suppagedir_set_page_swapped (spt, victim->upage, slot, spt_lock);
     }
 
   /* Remove old mapping */
@@ -136,11 +141,13 @@ frame_alloc (void *upage)
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
-  victim->pinned = false;
-
   kpage = victim->kpage;
+  
+  victim->pinned = false;
   lock_release (&frame_lock);
-  // printf ("frame_alloc: released frame_lock\n");
+  #ifdef DEADLOCK
+  printf ("frame_alloc: %d released frame_lock\n", thread_current ()->tid);
+  #endif
   return kpage;
 }
 
@@ -179,16 +186,22 @@ frame_free (void *kpage)
 /* Pin/unpin a frame by its kernel address. */
 void frame_set_pinned (void *kpage, bool pinned) 
 {
-  // printf ("frame_set_pinned: acquiring frame_lock\n");
+  #ifdef DEADLOCK
+  printf ("frame_set_pinned: %d acquiring frame_lock\n", thread_current ()->tid);
+  #endif
   lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
   if (fe == NULL)
     {
       lock_release (&frame_lock);
-      // printf ("frame_set_pinned: released frame_lock\n");
+      #ifdef DEADLOCK
+      printf ("frame_set_pinned: %d released frame_lock\n", thread_current ()->tid);
+      #endif
       return;  /* Not found */
     }
   fe->pinned = pinned;
   lock_release (&frame_lock);
-  // printf ("frame_set_pinned: released frame_lock\n");
+  #ifdef DEADLOCK
+  printf ("frame_set_pinned: %d released frame_lock\n", thread_current ()->tid);
+  #endif
 }

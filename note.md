@@ -514,4 +514,94 @@ palloc 也需要锁！
 [x] pt-write-code2
 [x] pt-grow-bad
 
-在驱逐的时候，加 spt 锁？
+全表锁——只在修改表结构（插入/删除/遍历）时用；
+
+表项锁——对单个 SPE 的状态修改（驱逐、反驱逐、读标志等）时用。
+
+2. 段加载或 BSS 清零不正确
+现象
+静态缓冲区初次访问时，看到一半是正确的内容，一半是旧内容；或者根本不是零。
+
+可能原因
+
+在 load_segment() 里实现懒加载（lazy load）时，读写段时 先读文件再 memset 或者根本没对“零 byte”做 memset，导致 BSS（.bss 段）的页面里残留了前一个使用该物理帧的内容。
+
+如果多个子进程都懒加载同一个可执行文件的某个段，而且重用了同一个物理帧，BSS 清零逻辑有缺陷，更容易看到交叉污染。
+
+排查
+
+给 segment.type == BSS 或者 zero_bytes > 0 分支里，插入打印／断点，确认每次 install_page() 前都对 kpage 做了 memset (kpage, 0, zero_bytes)。
+
+专门写一个测试：让静态缓冲区初始值固定可识别，直接 read() 一下，不做写，再运行多进程，看 buffer 里是否全是预期值。
+
+改进
+
+确保在加载每个将要映射为可写的页面时，对 file_read_bytes < pg_round_up(...) 的后半部份无条件做 memset(..., 0, zero_bytes)。
+
+如果实现了懒加载，把 zero 区域也当成一个“懒零”页面，在第一次访问时才零，逻辑同样要正确。
+
+3. 帧复用／驱逐（eviction）逻辑错误
+现象
+在高并发下，一个子进程在触发页错误，正在把帧写出 swap／文件；此时另一子进程的访问把它又拿走做 evict／加载，造成数据写混乱或访问未映射页。
+
+可能原因
+
+pin/unpin 逻辑有遗漏：在加载或写回过程中，没有把对应 frame 标记为 pinned，导致 clock 算法选中了正在使用的帧。
+
+supplemental page entry（SPE）锁与帧表锁的加解锁顺序不对，导致驱逐和加载同时作用到同一个物理帧。
+
+排查
+
+在 frame_alloc_and_lock()、frame_free()、evict_frame() 等函数里，加日志：什么时候 pin、什么时候 unpin；并打印当前帧被哪个 SPE 持有。
+
+用多进程并发访问同一大数组，制造压力，看是否能重现“正在读文件的帧被立刻踢走”情形。
+
+改进
+
+在所有文件读入（load）和写出（evict）整个过程前后，显式 pin/unpin：
+
+c
+复制
+编辑
+  frame_pin (f);
+  do_io_read_or_write (...);
+  frame_unpin (f);
+驱逐前先拿 SPE 锁，再 pin，再写回，再解锁、unpin。加载同理。
+
+4. 同步／锁遗漏
+现象
+偶发性的内存访问错误（比如突发页错误，或者直接访问到了非法地址），往往是并发时 hash 表、帧表或 SPE 访问出错。
+
+可能原因
+
+在对 SPE 只读时也忘了拿 SPE 锁，导致读取到不稳定状态。
+
+在调度切换、时钟中断、TLB 刷新等路径上，没有正确保护页目录或 TLB。
+
+排查
+
+全文搜索所有对 supplemental_page_table、frame_table、pagedir 的读写位置，确认每一处都在相应锁保护下。
+
+在高并发场景下，把所有锁的 acquire/release 打日志，找一下有没有“acquire 但没 release”或“use 前没 acquire”。
+
+改进
+
+保证对SPE 任何域的读，都要先 lock_acquire (&spe->lock)，读完再 lock_release。即便只是读 is_swapped、swap_slot、writable 等标志位。
+
+在 process_exit()、page_exit()、page_clear() 等清理路径上，也要先锁后做 hash_delete()、frame_free()。
+
+总结
+先验证：每个子进程是否真的拥有独立的页目录+补充页表。
+
+检查加载：BSS 清零、懒加载逻辑。
+
+强化 pin/unpin：任何 I/O 读写都要 pin，避免正在操作的帧被驱逐。
+
+锁的覆盖面：只要访问 SPE 或帧表，记得先拿锁。
+
+按上面思路逐步打日志排查，基本能定位是“段装载”还是“并发驱逐”还是“页表隔离”哪个环节出问题。调通后，再根据性能和并发需求，决定是否再做锁优化。祝调试顺利！
+
+
+load 的时候获取了文件系统锁，这时候如果在 setup stack 中上下文切换发生 page fault，会重复获取文件系统锁。解决方法：在 setup stack 之前解锁。
+
+检查 upage，尤其是 set pinned
