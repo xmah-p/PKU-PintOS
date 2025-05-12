@@ -33,4 +33,9 @@ void frame_free (void *kpage);
 /* Pins/unpins a frame to prevent/allow eviction. */
 void frame_set_pinned (void *kpage, bool pinned) ;
 
+void 
+print_acquire (const char *name);
+void 
+print_release (const char *name);
+
 #endif /* vm/frame.h */

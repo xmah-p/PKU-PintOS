@@ -461,6 +461,7 @@ rm build/tests/userprog/open-null.output; make build/tests/userprog/open-null.re
 
 rm build/tests/filesys/base/syn-write.output; make build/tests/filesys/base/syn-write.result  # filesys
 
+rm build/tests/vm/page-linear.output; make build/tests/vm/page-linear.result            # vm
 rm build/tests/vm/page-parallel.output; make build/tests/vm/page-parallel.result            # vm
 
 code src/userprog/build/tests/userprog/syn-read.output

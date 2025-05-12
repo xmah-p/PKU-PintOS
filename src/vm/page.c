@@ -22,6 +22,8 @@
    before loading the executable, and is destroyed via
    suppagedir_destroy () in process_exit (). */
 
+
+
 /* VPN (upage) as hash key */
 static unsigned 
 page_hash (const struct hash_elem *e, void *aux UNUSED)
@@ -112,80 +114,75 @@ load_page_from_spt (void *fault_addr)
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
-  lock_acquire (&filesys_lock);
-  lock_acquire (&frame_lock);
+  print_acquire("spt_lock");
   lock_acquire (spt_lock);
-  struct sup_page_entry *spe = suppagedir_find (spt, upage);
-  if (!spe) 
+  struct sup_page_entry *spe_ptr = suppagedir_find (spt, upage);
+  if (!spe_ptr) 
     {
       lock_release (spt_lock);
-      lock_release (&frame_lock);
-      lock_release (&filesys_lock);
+      print_release("spt_lock");
       return false;
     }
 
-  void *kpage = frame_alloc (upage);
+  struct sup_page_entry spe = *spe_ptr;
+  lock_release (spt_lock);
+  print_release("spt_lock");
 
-  if (spe->type == PAGE_ZERO) 
+  print_acquire("frame_lock");
+  lock_acquire (&frame_lock);
+  void *kpage = frame_alloc (upage);
+  lock_release (&frame_lock);
+  print_release("frame_lock");
+
+  if (spe.type == PAGE_ZERO) 
     {
       memset (kpage, 0, PGSIZE);
-      /* Install page into page table and set its dirty bit */
-      if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
+
+      if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable))
         {
           palloc_free_page (kpage);
           frame_set_pinned (kpage, false);
-          lock_release (spt_lock);
-          lock_release (&frame_lock);
-          lock_release (&filesys_lock);
           return false;
         }
       pagedir_set_dirty (t->pagedir, upage, true);
       frame_set_pinned (kpage, false);
-      lock_release (spt_lock);
-      lock_release (&frame_lock);
-      lock_release (&filesys_lock);
       return true;
     }
 
   /* Backed by file */
-  else if (spe->type == PAGE_BIN) 
+  else if (spe.type == PAGE_BIN) 
     {
-      file_seek (spe->file, spe->ofs);
-      size_t r = file_read (spe->file, kpage, spe->read_bytes);
-      if (r != spe->read_bytes) 
+      lock_acquire (&filesys_lock);
+      file_seek (spe.file, spe.ofs);
+      size_t r = file_read (spe.file, kpage, spe.read_bytes);
+      lock_release (&filesys_lock);
+      if (r != spe.read_bytes) 
         {
           /* read error */
           palloc_free_page (kpage);
           frame_set_pinned (kpage, false);
-          lock_release (spt_lock);
-          lock_release (&frame_lock);
-          lock_release (&filesys_lock);
           return false;
         }
 
-      memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
-      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+      memset (kpage + spe.read_bytes, 0, spe.zero_bytes);
+      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
       frame_set_pinned (kpage, false);
-
-      lock_release (spt_lock);
-      lock_release (&frame_lock);
-      lock_release (&filesys_lock);
       return succ;
     }
 
   /* Swapped out */
-  else if (spe->type == PAGE_SWAP) 
+  else if (spe.type == PAGE_SWAP) 
     {
-      swap_read (spe->swap_slot, kpage);
-      spe->swap_slot = (block_sector_t) -1;
+      swap_read (spe.swap_slot, kpage);
+
+      lock_acquire (spt_lock);
+      spe_ptr->swap_slot = (block_sector_t) -1;    /* Do not modify copy */
+      lock_release (spt_lock);
       
       /* Install page into page table and set its dirty bit */
-      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
+      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
       pagedir_set_dirty (t->pagedir, upage, true);
       frame_set_pinned (kpage, false);
-      lock_release (spt_lock);
-      lock_release (&frame_lock);
-      lock_release (&filesys_lock);
       return succ;
     }
   

@@ -1,5 +1,6 @@
 cd build && make grade
 make[1]: Entering directory '/home/PKUOS/pintos/src/vm/build'
+i386-elf-gcc -c ../../vm/frame.c -o vm/frame.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF vm/frame.d
 i386-elf-gcc -c ../../vm/page.c -o vm/page.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -DVM -MMD -MF vm/page.d
 i386-elf-ld -melf_i386 -T threads/kernel.lds.s -o kernel.o threads/start.o threads/init.o threads/thread.o threads/switch.o threads/interrupt.o threads/intr-stubs.o threads/synch.o threads/palloc.o threads/malloc.o devices/pit.o devices/timer.o devices/kbd.o devices/vga.o devices/serial.o devices/block.o devices/partition.o devices/ide.o devices/input.o devices/intq.o devices/rtc.o devices/shutdown.o devices/speaker.o lib/debug.o lib/random.o lib/stdio.o lib/stdlib.o lib/string.o lib/arithmetic.o lib/ustar.o lib/kernel/debug.o lib/kernel/list.o lib/kernel/bitmap.o lib/kernel/hash.o lib/kernel/console.o userprog/process.o userprog/pagedir.o userprog/exception.o userprog/syscall.o userprog/gdt.o userprog/tss.o filesys/filesys.o filesys/free-map.o filesys/file.o filesys/directory.o filesys/inode.o filesys/fsutil.o vm/frame.o vm/page.o vm/swap.o
 i386-elf-objdump -S kernel.o > kernel.asm
@@ -315,5 +316,71 @@ Differences in `diff -u' format:
 
 (Process exit codes are excluded for matching purposes.)
 pintos -v -k -T 300 --qemu  --filesys-size=2 -p tests/vm/page-linear -a page-linear --swap-size=4 -- -q  -f run page-linear < /dev/null 2> tests/vm/page-linear.errors > tests/vm/page-linear.output
-../../tests/Make.tests:74: recipe for target 'tests/vm/page-linear.output' failed
+perl -I../.. ../../tests/vm/page-linear.ck tests/vm/page-linear tests/vm/page-linear.result
+[31mFAIL tests/vm/page-linear
+[0mKernel panic in run: PANIC at ../../lib/kernel/list.c:251 in list_remove(): assertion `is_interior (elem)' failed.
+Call stack: 0xc0029ac2 0xc002a10a 0xc002a14f 0xc0022d5e 0xc0023070 0xc0030fe7 0xc002ddb6 0xc0021dfa 0xc002201a 0x804a025
+Translation of call stack:
+In kernel.o:
+0xc0029ac2: debug_panic (.../../lib/kernel/debug.c:38)
+0xc002a10a: list_remove (.../../lib/kernel/list.c:252)
+0xc002a14f: list_pop_front (.../../lib/kernel/list.c:263)
+0xc0022d5e: sema_up (...../../threads/synch.c:117)
+0xc0023070: lock_release (...../../threads/synch.c:235)
+0xc0030fe7: load_page_from_spt (...build/../../vm/page.c:180)
+0xc002ddb6: page_fault (.../userprog/exception.c:178)
+0xc0021dfa: intr_handler (..../threads/interrupt.c:367)
+0xc002201a: intr_entry (threads/intr-stubs.S:38)
+In tests/vm/page-linear:
+0x0804a025: memset (...ld/../../lib/string.c:285)
+Translations of user virtual addresses above are based on a guess at
+the binary to use.  If this guess is incorrect, then those
+translations will be misleading.
+pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/page-parallel -a page-parallel -p tests/vm/child-linear -a child-linear --swap-size=4 -- -q  -f run page-parallel < /dev/null 2> tests/vm/page-parallel.errors > tests/vm/page-parallel.output
+perl -I../.. ../../tests/vm/page-parallel.ck tests/vm/page-parallel tests/vm/page-parallel.result
+[31mFAIL tests/vm/page-parallel
+[0mKernel panic in run: PANIC at ../../lib/kernel/list.c:251 in list_remove(): assertion `is_interior (elem)' failed.
+Call stack: 0xc0029ac2 0xc002a10a 0xc002a14f 0xc0022d5e 0xc0023070 0xc0030fe7 0xc002ddb6 0xc0021dfa 0xc002201a 0x80482b3
+Translation of call stack:
+In kernel.o:
+0xc0029ac2: debug_panic (.../../lib/kernel/debug.c:38)
+0xc002a10a: list_remove (.../../lib/kernel/list.c:252)
+0xc002a14f: list_pop_front (.../../lib/kernel/list.c:263)
+0xc0022d5e: sema_up (...../../threads/synch.c:117)
+0xc0023070: lock_release (...../../threads/synch.c:235)
+0xc0030fe7: load_page_from_spt (...build/../../vm/page.c:180)
+0xc002ddb6: page_fault (.../userprog/exception.c:178)
+0xc0021dfa: intr_handler (..../threads/interrupt.c:367)
+0xc002201a: intr_entry (threads/intr-stubs.S:38)
+In tests/vm/page-parallel:
+0x080482b3: shuffle (...ib.c:74 (discriminator 3))
+Translations of user virtual addresses above are based on a guess at
+the binary to use.  If this guess is incorrect, then those
+translations will be misleading.
+pintos -v -k -T 600 --qemu  --filesys-size=2 -p tests/vm/page-merge-seq -a page-merge-seq -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-seq < /dev/null 2> tests/vm/page-merge-seq.errors > tests/vm/page-merge-seq.output
+perl -I../.. ../../tests/vm/page-merge-seq.ck tests/vm/page-merge-seq tests/vm/page-merge-seq.result
+[31mFAIL tests/vm/page-merge-seq
+[0mKernel panic in run: PANIC at ../../lib/kernel/hash.c:273 in hash_bytes(): assertion `buf != NULL' failed.
+Call stack: 0xc0029ac2 0xc002b807 0xc0030739 0xc002b900 0xc002b534 0xc0030a89 0xc0030b25 0xc002e8e5 0xc002e1d2 0xc002e626 0xc0021dfa 0xc002201a 0x804a5e3
+Translation of call stack:
+In kernel.o:
+0xc0029ac2: debug_panic (.../../lib/kernel/debug.c:38)
+0xc002b807: hash_bytes (.../../lib/kernel/hash.c:275)
+0xc0030739: frame_hash (...build/../../vm/frame.c:31)
+0xc002b900: find_bucket (.../../lib/kernel/hash.c:309)
+0xc002b534: hash_find (.../../lib/kernel/hash.c:135)
+0xc0030a89: frame_find (...uild/../../vm/frame.c:149)
+0xc0030b25: frame_set_pinned (...uild/../../vm/frame.c:178)
+0xc002e8e5: page_set_pinned (...l.c:421 (discriminator 3))
+0xc002e1d2: syscall_read (...../userprog/syscall.c:169)
+0xc002e626: syscall_handler (...../userprog/syscall.c:307)
+0xc0021dfa: intr_handler (..../threads/interrupt.c:367)
+0xc002201a: intr_entry (threads/intr-stubs.S:38)
+In tests/vm/page-merge-seq:
+0x0804a5e3: udiv64 (..../../lib/arithmetic.c:111)
+Translations of user virtual addresses above are based on a guess at
+the binary to use.  If this guess is incorrect, then those
+translations will be misleading.
+pintos -v -k -T 600 --qemu  --filesys-size=2 -p tests/vm/page-merge-par -a page-merge-par -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-par < /dev/null 2> tests/vm/page-merge-par.errors > tests/vm/page-merge-par.output
+../../tests/Make.tests:74: recipe for target 'tests/vm/page-merge-par.output' failed
 ../Makefile.kernel:10: recipe for target 'grade' failed

@@ -542,9 +542,14 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
+              lock_release (&filesys_lock);
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
-                goto fail;
+                {
+                  file_close (file);
+                  return false;
+                }
+              lock_acquire (&filesys_lock);
             }
           else
             goto fail;
@@ -650,7 +655,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.

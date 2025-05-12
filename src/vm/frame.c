@@ -135,6 +135,7 @@ frame_alloc (void *upage)
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
+  victim->pinned = false;
   kpage = victim->kpage;
   
   return kpage;
@@ -183,3 +184,14 @@ void frame_set_pinned (void *kpage, bool pinned)
   fe->pinned = pinned;
 }
 
+void 
+print_acquire (const char *name)
+{
+  // printf ("%d: acquiring %s\n", thread_current ()->tid, name);
+}
+
+void 
+print_release (const char *name)
+{
+  // printf ("%d: releasing %s\n", thread_current ()->tid, name);
+}
