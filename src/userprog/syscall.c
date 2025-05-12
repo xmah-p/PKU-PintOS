@@ -412,19 +412,17 @@ static void
 page_set_pinned (const void *buffer, unsigned size, bool pinned)
 {
   #ifdef VM
+  lock_acquire (&frame_lock);
   for (unsigned i = 0; i < size; i += PGSIZE)
     {
       void *upage = pg_round_down (buffer + i);
-      lock_acquire (&pagedir_lock);
       void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
-      lock_release (&pagedir_lock);
       frame_set_pinned (kpage, pinned);
     }
   void *upage = pg_round_down (buffer + size - 1);
-  lock_acquire (&pagedir_lock);
   void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
-  lock_release (&pagedir_lock);
   frame_set_pinned (kpage, pinned);
+  lock_release (&frame_lock);
   #endif
   return;
 }

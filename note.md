@@ -615,3 +615,7 @@ translations will be misleading.
 驱逐查 accessed bit，查 pd 的时候缺页，导致锁重复获取。
 
 frame lock 在外层管理。去掉表项锁
+
+对 pagedir 的访问：唯一的可能冲突发生在，一个线程在驱逐（涉及读脏位、清空页表项），另一个线程在使用该页。（真的有冲突吗？）
+
+需要检查：sptlock, frame lock, filesys lock

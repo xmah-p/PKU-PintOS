@@ -113,38 +113,37 @@ load_page_from_spt (void *fault_addr)
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
   lock_acquire (&filesys_lock);
-
+  lock_acquire (&frame_lock);
   lock_acquire (spt_lock);
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
-  if (!spe) return false;
+  if (!spe) 
+    {
+      lock_release (spt_lock);
+      lock_release (&frame_lock);
+      lock_release (&filesys_lock);
+      return false;
+    }
 
-  /* Allocate a frame for this page */
   void *kpage = frame_alloc (upage);
 
-  /* Fill frame from backing store */
-  /* Zeroed page */
   if (spe->type == PAGE_ZERO) 
     {
       memset (kpage, 0, PGSIZE);
       /* Install page into page table and set its dirty bit */
-      lock_acquire (&pagedir_lock);
       if (!pagedir_set_page (t->pagedir, upage, kpage, spe->writable))
         {
-          /* Failed to install page */
           palloc_free_page (kpage);
-          lock_release (&pagedir_lock);
-
           frame_set_pinned (kpage, false);
+          lock_release (spt_lock);
+          lock_release (&frame_lock);
           lock_release (&filesys_lock);
           return false;
         }
-      
       pagedir_set_dirty (t->pagedir, upage, true);
-      lock_release (&pagedir_lock);
-
       frame_set_pinned (kpage, false);
+      lock_release (spt_lock);
+      lock_release (&frame_lock);
       lock_release (&filesys_lock);
-
       return true;
     }
 
@@ -157,25 +156,20 @@ load_page_from_spt (void *fault_addr)
         {
           /* read error */
           palloc_free_page (kpage);
-
-          lock_release (&filesys_lock);
-
           frame_set_pinned (kpage, false);
-
+          lock_release (spt_lock);
+          lock_release (&frame_lock);
+          lock_release (&filesys_lock);
           return false;
         }
+
       memset (kpage + spe->read_bytes, 0, spe->zero_bytes);
-
-      /* Install page into page table */
-      /* No need to worry about spe->writable race, because there
-         should not be any chance that it is modified */
-      lock_acquire (&pagedir_lock);
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
-      lock_release (&pagedir_lock);
-
       frame_set_pinned (kpage, false);
-      lock_release (&filesys_lock);
 
+      lock_release (spt_lock);
+      lock_release (&frame_lock);
+      lock_release (&filesys_lock);
       return succ;
     }
 
@@ -186,11 +180,11 @@ load_page_from_spt (void *fault_addr)
       spe->swap_slot = (block_sector_t) -1;
       
       /* Install page into page table and set its dirty bit */
-      lock_acquire (&pagedir_lock);
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe->writable);
       pagedir_set_dirty (t->pagedir, upage, true);
-      lock_release (&pagedir_lock);
       frame_set_pinned (kpage, false);
+      lock_release (spt_lock);
+      lock_release (&frame_lock);
       lock_release (&filesys_lock);
       return succ;
     }
@@ -231,9 +225,7 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
 {
   struct sup_page_entry *spe = hash_entry (e, struct sup_page_entry, h_elem);
 
-  lock_acquire (&pagedir_lock);
   void *kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
-  lock_release (&pagedir_lock);
 
   /* Free swap slot if used */
   if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
@@ -241,13 +233,6 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
 
   if (kpage) 
   {
-    /* Free the frame */
-    /* Possible deadlock point! */
-    /* At this point, we are holding spt_lock and calling frame_free ()
-       which will acquire frame lock inside. 
-       This is dangerous, we MUST make sure that there will not be any
-       situation where another thread is holding frame lock and acquiring
-       spt_lock. */
     frame_free (kpage);
     pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   }

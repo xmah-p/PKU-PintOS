@@ -315,40 +315,5 @@ Differences in `diff -u' format:
 
 (Process exit codes are excluded for matching purposes.)
 pintos -v -k -T 300 --qemu  --filesys-size=2 -p tests/vm/page-linear -a page-linear --swap-size=4 -- -q  -f run page-linear < /dev/null 2> tests/vm/page-linear.errors > tests/vm/page-linear.output
-perl -I../.. ../../tests/vm/page-linear.ck tests/vm/page-linear tests/vm/page-linear.result
-[32mpass tests/vm/page-linear
-[0mpintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/page-parallel -a page-parallel -p tests/vm/child-linear -a child-linear --swap-size=4 -- -q  -f run page-parallel < /dev/null 2> tests/vm/page-parallel.errors > tests/vm/page-parallel.output
-perl -I../.. ../../tests/vm/page-parallel.ck tests/vm/page-parallel tests/vm/page-parallel.result
-[31mFAIL tests/vm/page-parallel
-[0mrun: byte 3552 != 0: FAILED
-pintos -v -k -T 600 --qemu  --filesys-size=2 -p tests/vm/page-merge-seq -a page-merge-seq -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-seq < /dev/null 2> tests/vm/page-merge-seq.errors > tests/vm/page-merge-seq.output
-perl -I../.. ../../tests/vm/page-merge-seq.ck tests/vm/page-merge-seq tests/vm/page-merge-seq.result
-[31mFAIL tests/vm/page-merge-seq
-[0mKernel panic in run: PANIC at ../../lib/kernel/hash.c:273 in hash_bytes(): assertion `buf != NULL' failed.
-Call stack: 0xc0029acd 0xc002b812 0xc00305e5 0xc002b90b 0xc002b53f 0xc003094a 0xc00309f6 0xc002e791 0xc002e164 0xc002e50c 0xc0021e05 0xc0022025 0x804aa88 0x8048190 0x804841d 0x8048c0c 0x8048c3d
-Translation of call stack:
-In kernel.o:
-0xc0029acd: debug_panic (.../../lib/kernel/debug.c:38)
-0xc002b812: hash_bytes (.../../lib/kernel/hash.c:275)
-0xc00305e5: frame_hash (...build/../../vm/frame.c:31)
-0xc002b90b: find_bucket (.../../lib/kernel/hash.c:309)
-0xc002b53f: hash_find (.../../lib/kernel/hash.c:135)
-0xc003094a: frame_find (...uild/../../vm/frame.c:162)
-0xc00309f6: frame_set_pinned (...uild/../../vm/frame.c:195)
-0xc002e791: page_set_pinned (...l.c:421 (discriminator 3))
-0xc002e164: syscall_write (...../userprog/syscall.c:193)
-0xc002e50c: syscall_handler (...../userprog/syscall.c:310)
-0xc0021e05: intr_handler (..../threads/interrupt.c:367)
-0xc0022025: intr_entry (threads/intr-stubs.S:38)
-In tests/vm/page-merge-seq:
-0x0804aa88: write (...../lib/user/syscall.c:123)
-0x08048190: sort_chunks (...ts/vm/page-merge-seq.c:54)
-0x0804841d: test_main (...s/vm/page-merge-seq.c:135)
-0x08048c0c: main (...ild/../../tests/main.c:13)
-0x08048c3d: _start (.../../../lib/user/entry.c:9)
-Translations of user virtual addresses above are based on a guess at
-the binary to use.  If this guess is incorrect, then those
-translations will be misleading.
-pintos -v -k -T 600 --qemu  --filesys-size=2 -p tests/vm/page-merge-par -a page-merge-par -p tests/vm/child-sort -a child-sort --swap-size=4 -- -q  -f run page-merge-par < /dev/null 2> tests/vm/page-merge-par.errors > tests/vm/page-merge-par.output
-../../tests/Make.tests:74: recipe for target 'tests/vm/page-merge-par.output' failed
+../../tests/Make.tests:74: recipe for target 'tests/vm/page-linear.output' failed
 ../Makefile.kernel:10: recipe for target 'grade' failed
