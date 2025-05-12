@@ -71,14 +71,14 @@ pick_victim_frame (void)
       if (!fe->pinned) 
         {
           /* Check accessed bit: pick if not set */
-          if (!pagedir_is_accessed(fe->owner->pagedir, fe->upage))
+          if (!pagedir_is_accessed (fe->owner->pagedir, fe->upage))
             {
               /* Pin and return */
               fe->pinned = true;
               return fe;
             }
           /* Otherwise, give a second chance */
-          pagedir_set_accessed(fe->owner->pagedir, fe->upage, false);
+          pagedir_set_accessed (fe->owner->pagedir, fe->upage, false);
         }
       clock_hand = list_next(clock_hand);
     }
@@ -89,10 +89,6 @@ void *
 frame_alloc (void *upage) 
 {
   ASSERT (is_user_vaddr (upage));
-  #ifdef DEADLOCK
-  printf ("frame_alloc: %d acquiring frame_lock\n", thread_current ()->tid);
-  #endif
-  lock_acquire (&frame_lock);
 
   /* Try to get a free page from user pool */
   void *kpage = palloc_get_page (PAL_USER);
@@ -110,18 +106,20 @@ frame_alloc (void *upage)
 
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
-      lock_release (&frame_lock);
-      #ifdef DEADLOCK
-      printf ("frame_alloc: %d released frame_lock\n", thread_current ()->tid);
-      #endif
+          
       return kpage;
     }
 
   /* No free page: evict one via clock algorithm */
+  lock_acquire (&pagedir_lock);
   struct frame_entry *victim = pick_victim_frame ();
+
+  /* Remove old mapping */
+  pagedir_clear_page (victim->owner->pagedir, victim->upage);
 
   /* If dirty, write to swap (swap_write returns slot index) */
   bool dirty = pagedir_is_dirty (victim->owner->pagedir, victim->upage);
+  lock_release (&pagedir_lock);
   if (dirty) 
     {
       block_sector_t slot = swap_write (victim->kpage);
@@ -135,15 +133,11 @@ frame_alloc (void *upage)
       suppagedir_set_page_swapped (spt, victim->upage, slot, spt_lock);
     }
 
-  /* Remove old mapping */
-  pagedir_clear_page (victim->owner->pagedir, victim->upage);
-
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
   kpage = victim->kpage;
   
-  victim->pinned = false;
   lock_release (&frame_lock);
   #ifdef DEADLOCK
   printf ("frame_alloc: %d released frame_lock\n", thread_current ()->tid);
@@ -205,3 +199,4 @@ void frame_set_pinned (void *kpage, bool pinned)
   printf ("frame_set_pinned: %d released frame_lock\n", thread_current ()->tid);
   #endif
 }
+

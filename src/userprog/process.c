@@ -308,8 +308,10 @@ free_pd (void)
       directory, or our active page directory will be one
       that's been freed (and cleared). */
   cur->pagedir = NULL;
+  lock_acquire (&pagedir_lock);
   pagedir_activate (NULL);
   pagedir_destroy (pd);   
+  lock_release (&pagedir_lock);
 }
 
 void
@@ -346,6 +348,7 @@ process_exit (int status)
       e = list_next (e);
       free_proc_info_refcnt (child_proc_info);
     }
+    
   lock_acquire (&frame_lock);
   lock_acquire (&proc_info->spt_lock);
   suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
@@ -460,7 +463,9 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
   char *prog_name = argv[0];
 
   /* Allocate and activate page directory. */
+  lock_acquire (&pagedir_lock);
   t->pagedir = pagedir_create ();
+  lock_release (&pagedir_lock);
   if (t->pagedir == NULL) 
     return false;
   process_activate ();

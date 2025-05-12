@@ -518,29 +518,8 @@ palloc 也需要锁！
 
 表项锁——对单个 SPE 的状态修改（驱逐、反驱逐、读标志等）时用。
 
-2. 段加载或 BSS 清零不正确
-现象
-静态缓冲区初次访问时，看到一半是正确的内容，一半是旧内容；或者根本不是零。
 
-可能原因
-
-在 load_segment() 里实现懒加载（lazy load）时，读写段时 先读文件再 memset 或者根本没对“零 byte”做 memset，导致 BSS（.bss 段）的页面里残留了前一个使用该物理帧的内容。
-
-如果多个子进程都懒加载同一个可执行文件的某个段，而且重用了同一个物理帧，BSS 清零逻辑有缺陷，更容易看到交叉污染。
-
-排查
-
-给 segment.type == BSS 或者 zero_bytes > 0 分支里，插入打印／断点，确认每次 install_page() 前都对 kpage 做了 memset (kpage, 0, zero_bytes)。
-
-专门写一个测试：让静态缓冲区初始值固定可识别，直接 read() 一下，不做写，再运行多进程，看 buffer 里是否全是预期值。
-
-改进
-
-确保在加载每个将要映射为可写的页面时，对 file_read_bytes < pg_round_up(...) 的后半部份无条件做 memset(..., 0, zero_bytes)。
-
-如果实现了懒加载，把 zero 区域也当成一个“懒零”页面，在第一次访问时才零，逻辑同样要正确。
-
-3. 帧复用／驱逐（eviction）逻辑错误
+1. 帧复用／驱逐（eviction）逻辑错误
 现象
 在高并发下，一个子进程在触发页错误，正在把帧写出 swap／文件；此时另一子进程的访问把它又拿走做 evict／加载，造成数据写混乱或访问未映射页。
 
@@ -605,3 +584,34 @@ c
 load 的时候获取了文件系统锁，这时候如果在 setup stack 中上下文切换发生 page fault，会重复获取文件系统锁。解决方法：在 setup stack 之前解锁。
 
 检查 upage，尤其是 set pinned
+
+FAIL
+Kernel panic in run: PANIC at ../../threads/synch.c:197 in lock_acquire(): assertion `!lock_held_by_current_thread (lock)' failed.
+Call stack: 0xc0029abd 0xc0022f43 0xc0030bb4 0xc002dc15 0xc0021df5 0xc0022015 0xc002d405 0xc002d7d2 0xc0030653 0xc003079d 0xc0030c12 0xc002dc15 0xc0021df5 0xc0022015 0x80482b1 0x80480dc 0x8048916
+Translation of call stack:
+In kernel.o:
+0xc0029abd: debug_panic (.../../lib/kernel/debug.c:38)
+0xc0022f43: lock_acquire (...../../threads/synch.c:199)
+0xc0030bb4: load_page_from_spt (...build/../../vm/page.c:120)
+0xc002dc15: page_fault (.../userprog/exception.c:178)
+0xc0021df5: intr_handler (..../threads/interrupt.c:367)
+0xc0022015: intr_entry (threads/intr-stubs.S:38)
+0xc002d405: lookup_page (.../../userprog/pagedir.c:69)
+0xc002d7d2: pagedir_is_accessed (...../userprog/pagedir.c:195)
+0xc0030653: pick_victim_frame (...build/../../vm/frame.c:74)
+0xc003079d: frame_alloc (...uild/../../vm/frame.c:121)
+0xc0030c12: load_page_from_spt (...build/../../vm/page.c:140)
+0xc002dc15: page_fault (.../userprog/exception.c:178)
+0xc0021df5: intr_handler (..../threads/interrupt.c:367)
+0xc0022015: intr_entry (threads/intr-stubs.S:38)
+In tests/vm/page-parallel:
+0x080482b1: shuffle (...ib.c:74 (discriminator 3))
+0x080480dc: test_main (...sts/vm/page-parallel.c:20)
+0x08048916: random_ulong (...ild/../../lib/random.c:81)
+Translations of user virtual addresses above are based on a guess at
+the binary to use.  If this guess is incorrect, then those
+translations will be misleading.
+
+驱逐查 accessed bit，查 pd 的时候缺页，导致锁重复获取。
+
+frame lock 在外层管理。去掉表项锁

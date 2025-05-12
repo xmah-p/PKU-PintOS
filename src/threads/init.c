@@ -24,6 +24,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
 
 #ifdef USERPROG
 #include "threads/synch.h"
@@ -141,6 +142,7 @@ pintos_init (void)
 #endif
 
 #ifdef VM
+  pagedir_init ();
   frame_init ();
   swap_init ();
 #endif

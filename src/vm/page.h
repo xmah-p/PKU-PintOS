@@ -26,7 +26,6 @@ struct sup_page_entry
     size_t zero_bytes;        /* Bytes to zero */
     block_sector_t swap_slot; /* Swap slot index if PAGE_SWAP, else -1 */
     bool writable;
-    struct lock lock;                /* Lock for synchronization */
   };
 
 void suppagedir_init (struct hash *spt);
