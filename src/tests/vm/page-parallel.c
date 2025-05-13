@@ -4,7 +4,7 @@
 #include "tests/lib.h"
 #include "tests/main.h"
 
-#define CHILD_CNT 4
+#define CHILD_CNT 1
 
 void
 test_main (void)
@@ -18,4 +18,35 @@ test_main (void)
 
   for (i = 0; i < CHILD_CNT; i++) 
     CHECK (wait (children[i]) == 0x42, "wait for child %d", i);
+
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK ((children[i] = exec ("child-linear")) != -1,
+           "exec \"child-linear\"");
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK (wait (children[i]) == 0x42, "wait for child %d", i);
+
+
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK ((children[i] = exec ("child-linear")) != -1,
+           "exec \"child-linear\"");
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK (wait (children[i]) == 0x42, "wait for child %d", i);
+
+
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK ((children[i] = exec ("child-linear")) != -1,
+           "exec \"child-linear\"");
+
+  for (i = 0; i < CHILD_CNT; i++) 
+    CHECK (wait (children[i]) == 0x42, "wait for child %d", i);
+
+
+
+
+    
 }

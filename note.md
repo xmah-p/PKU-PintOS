@@ -446,7 +446,7 @@ pintos --filesys-size=2 -p build/tests/vm/page-parallel -a pp -- -f -q run 'pp'
 # at build/
 pintos --gdb -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/page-parallel -a page-parallel -p tests/vm/child-linear -a child-linear --swap-size=4 -- -q  -f run page-parallel < /dev/null
 
-cd pintos/src/vm/; make
+cd pintos/src/vm/; make grade > ~/pintos/grade.txt  # run all tests and grade
 
 cd build;
 
@@ -620,3 +620,12 @@ frame lock 在外层管理。去掉表项锁
 对 pagedir 的访问：唯一的可能冲突发生在，一个线程在驱逐（涉及读脏位、清空页表项），另一个线程在使用该页。（真的有冲突吗？）
 
 需要检查：sptlock, frame lock, filesys lock
+
+测试：不并行，顺序四次 linear 有没有问题？  
+- 不并行，顺序两次，似乎没什么问题
+- 不并行，顺序三或四次，也出现了污染！
+- 进程退出时重置帧系统，OK！
+检查 exit！！
+
+page fault加载的时候会在 pagedir 里设置页，在进程退出的时候，
+

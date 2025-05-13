@@ -8,6 +8,7 @@
 #include "devices/block.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "frame.h"
 
 /* PAGE_BIN: Backed by a file (e.g., executable, mmap)
    PAGE_ZERO: Zeroed page (e.g., stack, heap)
@@ -18,28 +19,29 @@ enum page_type { PAGE_BIN, PAGE_ZERO, PAGE_SWAP };
 struct sup_page_entry 
   {
     struct hash_elem h_elem;
-    void *upage;               /* User virtual page (key) */
+    upage_t upage;               /* User virtual page (key) */
     enum page_type type;
     struct file *file;        /* Backing file (for PAGE_BIN) */
     off_t ofs;                /* Offset in file */
     size_t read_bytes;        /* Bytes to read */
     size_t zero_bytes;        /* Bytes to zero */
     block_sector_t swap_slot; /* Swap slot index if PAGE_SWAP, else -1 */
+    struct frame_entry *fe;   /* Frame entry if PAGE_BIN or PAGE_ZERO */
     bool writable;
   };
 
 void suppagedir_init (struct hash *spt);
 
-bool suppagedir_install_bin_page (struct hash *spt, void *upage,
+bool suppagedir_install_bin_page (struct hash *spt, upage_t upage,
                                   struct file *file, off_t ofs,
                                   size_t read_bytes, size_t zero_bytes,
                                   bool writable);
 
-bool suppagedir_install_zero_page (struct hash *spt, void *upage,
+bool suppagedir_install_zero_page (struct hash *spt, upage_t upage,
                                    bool writable);
 
 void suppagedir_destroy (struct hash *spt);
-void suppagedir_set_page_swapped (struct hash *spt, void *upage,
+void suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
                                  block_sector_t swap_slot);
 bool load_page_from_spt (void *fault_addr);
 

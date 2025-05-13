@@ -67,11 +67,11 @@ palloc_init (size_t user_page_limit)
    then the pages are filled with zeros.  If too few pages are
    available, returns a null pointer, unless PAL_ASSERT is set in
    FLAGS, in which case the kernel panics. */
-void *
+kpage_t
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 {
   struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
-  void *pages;
+  kpage_t pages;
   size_t page_idx;
 
   if (page_cnt == 0)
@@ -107,7 +107,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
    then the page is filled with zeros.  If no pages are
    available, returns a null pointer, unless PAL_ASSERT is set in
    FLAGS, in which case the kernel panics. */
-void *
+kpage_t
 palloc_get_page (enum palloc_flags flags) 
 {
   return palloc_get_multiple (flags, 1);
@@ -115,7 +115,7 @@ palloc_get_page (enum palloc_flags flags)
 
 /** Frees the PAGE_CNT pages starting at PAGES. */
 void
-palloc_free_multiple (void *pages, size_t page_cnt) 
+palloc_free_multiple (kpage_t pages, size_t page_cnt) 
 {
   struct pool *pool;
   size_t page_idx;
@@ -143,7 +143,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
 /** Frees the page at PAGE. */
 void
-palloc_free_page (void *page) 
+palloc_free_page (kpage_t page) 
 {
   palloc_free_multiple (page, 1);
 }
@@ -172,7 +172,7 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
 /** Returns true if PAGE was allocated from POOL,
    false otherwise. */
 static bool
-page_from_pool (const struct pool *pool, void *page) 
+page_from_pool (const struct pool *pool, kpage_t page) 
 {
   size_t page_no = pg_no (page);
   size_t start_page = pg_no (pool->base);

@@ -86,13 +86,13 @@ pick_victim_frame (void)
 
 /* Allocate a frame for user page upage, evicting if necessary. 
    Will only be called in load_page_from_spt */
-void *
-frame_alloc (void *upage) 
+struct frame_entry *
+frame_alloc (upage_t upage) 
 {
   ASSERT (is_user_vaddr (upage));
 
   /* Try to get a free page from user pool */
-  void *kpage = palloc_get_page (PAL_USER);
+  kpage_t kpage = palloc_get_page (PAL_USER);
   if (kpage != NULL) 
     {
       /* Create a new frame entry */
@@ -100,7 +100,7 @@ frame_alloc (void *upage)
       fe->kpage = kpage;
       fe->owner = thread_current ();
       fe->upage = upage;
-      fe->pinned = false;
+      fe->pinned = true;
 
       hash_insert (&frame_map, &fe->h_elem);
       list_push_back (&frame_list, &fe->l_elem);
@@ -108,17 +108,16 @@ frame_alloc (void *upage)
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
           
-      return kpage;
+      return fe;
     }
 
   /* No free page: evict one via clock algorithm */
   struct frame_entry *victim = pick_victim_frame ();
 
-  /* Remove old mapping */
-  pagedir_clear_page (victim->owner->pagedir, victim->upage);
-
   /* If dirty, write to swap (swap_write returns slot index) */
   bool dirty = pagedir_is_dirty (victim->owner->pagedir, victim->upage);
+  /* Remove old mapping */
+  pagedir_clear_page (victim->owner->pagedir, victim->upage);
   if (dirty) 
     {
       block_sector_t slot = swap_write (victim->kpage);
@@ -135,16 +134,16 @@ frame_alloc (void *upage)
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
   victim->upage = upage;
-  victim->pinned = false;
+  victim->pinned = true;
   kpage = victim->kpage;
   
-  return kpage;
+  return victim;
 }
 
 /* Lookup frame_entry by its kernel address (kpage).
    Should acquire and release frame_lock before and after! */
 static struct frame_entry *
-frame_find (void *kpage) 
+frame_find (kpage_t kpage) 
 {
   struct frame_entry key_fe = { .kpage = kpage };
   struct hash_elem *he = hash_find (&frame_map, &key_fe.h_elem);
@@ -159,14 +158,14 @@ frame_find (void *kpage)
 /* Free a frame and its entry (called when process exits). 
    Not synchroized! */
 void 
-frame_free (void *kpage) 
+frame_free (struct frame_entry *fe) 
 {
-  struct frame_entry *fe = frame_find (kpage);
-  if (fe == NULL)
-    {;
-      return;  /* Not found */
-    }
-  
+  ASSERT (fe != NULL);
+  ASSERT (fe->kpage != NULL);
+
+  kpage_t kpage = fe->kpage;
+  if (clock_hand == &fe->l_elem)
+    clock_hand = list_next (clock_hand);
   list_remove (&fe->l_elem);
   hash_delete (&frame_map, &fe->h_elem);
   palloc_free_page (kpage);
@@ -174,7 +173,7 @@ frame_free (void *kpage)
 }
 
 /* Pin/unpin a frame by its kernel address. */
-void frame_set_pinned (void *kpage, bool pinned) 
+void frame_set_pinned (kpage_t kpage, bool pinned) 
 {
   struct frame_entry *fe = frame_find (kpage);
   if (fe == NULL)
@@ -194,4 +193,12 @@ void
 print_release (const char *name)
 {
   // printf ("%d: releasing %s\n", thread_current ()->tid, name);
+}
+
+void reset_frame_system (void)
+{
+  hash_destroy (&frame_map, NULL);
+  hash_init (&frame_map, frame_hash, frame_less, NULL);
+  list_init (&frame_list);
+  clock_hand = NULL;
 }

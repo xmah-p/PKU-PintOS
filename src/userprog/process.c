@@ -351,6 +351,7 @@ process_exit (int status)
   lock_acquire (&proc_info->spt_lock);
   suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
   lock_release (&proc_info->spt_lock);
+  // reset_frame_system ();
   lock_release (&frame_lock);
   
   lock_release (&proc_info->lock);

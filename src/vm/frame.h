@@ -6,14 +6,16 @@
 #include "threads/thread.h"
 #include "lib/kernel/hash.h"
 
+typedef void * kpage_t; /* Kernel page (physical address) */
+typedef void * upage_t; /* User page (virtual address) */
 
 struct frame_entry
   {
     struct hash_elem h_elem;   /* Hash element (keyed by kpage) */
     struct list_elem l_elem;   /* List element for global frame list */
-    void *kpage;               /* Kernel (physical) address of frame */
+    kpage_t kpage;               /* Kernel (physical) address of frame */
     struct thread *owner;      /* Owning process/thread */
-    void *upage;               /* User virtual address mapped here */
+    upage_t upage;               /* User virtual address mapped here */
     bool pinned;               /* If true, do not evict */
   };
 
@@ -24,18 +26,20 @@ void frame_init (void);
 
 /* Allocates a user frame for user page 'upage', evicting if needed.
    Called in load_page_from_spt () */
-void *frame_alloc (void *upage);
+struct frame_entry *frame_alloc (upage_t upage);
 
 /* Frees a frame when a process exits (unmaps and releases). 
    Called in destroy_spe () */
-void frame_free (void *kpage);
+void frame_free (struct frame_entry *fe);
 
 /* Pins/unpins a frame to prevent/allow eviction. */
-void frame_set_pinned (void *kpage, bool pinned) ;
+void frame_set_pinned (kpage_t kpage, bool pinned) ;
 
 void 
 print_acquire (const char *name);
 void 
 print_release (const char *name);
+
+void reset_frame_system (void);
 
 #endif /* vm/frame.h */
