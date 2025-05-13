@@ -60,12 +60,8 @@ pick_victim_frame (void)
   if (clock_hand == NULL)
     clock_hand = list_begin (&frame_list);
 
-  int size = list_size (&frame_list);
-  int loop_count = size * 2; /* Avoid infinite loop */
-  int i = 0;
-
   /* Loop until we find a non-pinned, not-recently-used frame */
-  while (i++ < loop_count)
+  while (true)
     {
       if (clock_hand == list_end (&frame_list))
           clock_hand = list_begin (&frame_list);
@@ -86,13 +82,12 @@ pick_victim_frame (void)
         }
       clock_hand = list_next(clock_hand);
     }
-  PANIC ("frame: no free frame found");
-  return NULL;  /* Not reached */
+  NOT_REACHED ();
 }
 
 /* Allocate a frame for user page upage, evicting if necessary. 
    Will only be called in load_page_from_spt */
-struct frame_entry *
+kpage_t
 frame_alloc (upage_t upage) 
 {
   ASSERT (is_user_vaddr (upage));
@@ -114,7 +109,7 @@ frame_alloc (upage_t upage)
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
           
-      return fe;
+      return kpage;
     }
 
   /* No free page: evict one via clock algorithm */
@@ -128,14 +123,13 @@ frame_alloc (upage_t upage)
   if (dirty) 
     {
       slot = swap_write (victim->kpage);
+      /* Update victim's supplemental page entry */
+      struct hash *spt = &victim->owner->proc_info->sup_page_table;
+      struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
+      lock_acquire (spt_lock);
+      suppagedir_set_page_swapped (spt, victim->upage, slot);
+      lock_release (spt_lock);
     }
-
-  /* Update victim's supplemental page entry */
-  struct hash *spt = &victim->owner->proc_info->sup_page_table;
-  struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
-  lock_acquire (spt_lock);
-  suppagedir_set_page_evicted (spt, victim->upage, slot);
-  lock_release (spt_lock);
 
   /* Reuse this frame for new page */
   victim->owner = thread_current ();
@@ -143,7 +137,7 @@ frame_alloc (upage_t upage)
   victim->pinned = true;
   kpage = victim->kpage;
   
-  return victim;
+  return kpage;
 }
 
 /* Lookup frame_entry by its kernel address (kpage).

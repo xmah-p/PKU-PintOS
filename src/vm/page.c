@@ -71,7 +71,6 @@ bool suppagedir_install_bin_page(struct hash *spt, upage_t upage,
   spe->zero_bytes = zero_bytes;
   spe->writable = writable;
   spe->swap_slot = (block_sector_t) -1;
-  spe->fe = NULL;
   hash_insert (spt, &spe->h_elem);
   return true;
 }
@@ -93,7 +92,6 @@ bool suppagedir_install_zero_page (struct hash *spt, upage_t upage,
   spe->zero_bytes = 0;
   spe->writable = writable;
   spe->swap_slot = (block_sector_t) -1;
-  spe->fe = NULL;
   hash_insert (spt, &spe->h_elem);
   return true;
 }
@@ -117,8 +115,7 @@ load_page_from_spt (void *fault_addr)
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
   lock_acquire (&frame_lock);
-  struct frame_entry *fe = frame_alloc (upage);
-  kpage_t kpage = fe->kpage;
+  kpage_t kpage = frame_alloc (upage);
   lock_release (&frame_lock);
 
   lock_acquire (spt_lock);
@@ -136,14 +133,11 @@ load_page_from_spt (void *fault_addr)
     {
       memset (kpage, 0, PGSIZE);
 
-      lock_acquire (spt_lock);
-      spe_ptr->fe = fe;
-      lock_release (spt_lock);
-
       if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable))
         {
-          palloc_free_page (kpage);
-          frame_set_pinned (kpage, false);
+          lock_acquire (&frame_lock);
+          frame_free (kpage);
+          lock_release (&frame_lock);
           return false;
         }
       pagedir_set_dirty (t->pagedir, upage, true);
@@ -157,10 +151,6 @@ load_page_from_spt (void *fault_addr)
   /* Backed by file */
   else if (spe.type == PAGE_BIN) 
     {      
-      lock_acquire (&frame_lock);
-      frame_set_pinned (kpage, true);
-      lock_release (&frame_lock);
-
       lock_acquire (&filesys_lock);
       file_seek (spe.file, spe.ofs);
       size_t r = file_read (spe.file, kpage, spe.read_bytes);
@@ -168,16 +158,11 @@ load_page_from_spt (void *fault_addr)
       if (r != spe.read_bytes) 
         {
           /* read error */
-          palloc_free_page (kpage);
-          frame_set_pinned (kpage, false);
+          frame_free (kpage);
           return false;
         }
 
-      memset (kpage + spe.read_bytes, 0, spe.zero_bytes);
-
-      lock_acquire (spt_lock);
-      spe_ptr->fe = fe;
-      lock_release (spt_lock);      
+      memset (kpage + spe.read_bytes, 0, spe.zero_bytes);   
 
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
 
@@ -190,15 +175,10 @@ load_page_from_spt (void *fault_addr)
   /* Swapped out */
   else if (spe.type == PAGE_SWAP) 
     {
-      lock_acquire (&frame_lock);
-      frame_set_pinned (kpage, true);
-      lock_release (&frame_lock);
-
       swap_read (spe.swap_slot, kpage);
 
       lock_acquire (spt_lock);
       spe_ptr->swap_slot = (block_sector_t) -1;    /* Do not modify copy */
-      spe_ptr->fe = fe;
       lock_release (spt_lock);
 
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
@@ -216,18 +196,14 @@ load_page_from_spt (void *fault_addr)
 /* Set the swap slot in the supplemental page table entry. 
    Should acquire and release spt_lock before and after! */
 void
-suppagedir_set_page_evicted (struct hash *spt, upage_t upage,
+suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
                              block_sector_t swap_slot)
 {
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
   if (spe) 
   {
-    if (swap_slot != (block_sector_t) -1) 
-      {
-        spe->type = PAGE_SWAP;
-        spe->swap_slot = swap_slot;
-      }
-    spe->fe = NULL; /* No frame */
+    spe->type = PAGE_SWAP;
+    spe->swap_slot = swap_slot;
   }
 }
 
@@ -259,9 +235,10 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
   if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
     swap_free (spe->swap_slot);
 
-  if (spe->fe) 
+  kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
+  if (kpage) 
   {
-    frame_free (spe->fe->kpage);
+    frame_free (kpage);
   }
   pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   free (spe);

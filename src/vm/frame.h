@@ -26,7 +26,7 @@ void frame_init (void);
 
 /* Allocates a user frame for user page 'upage', evicting if needed.
    Called in load_page_from_spt () */
-struct frame_entry *frame_alloc (upage_t upage);
+kpage_t frame_alloc (upage_t upage);
 
 /* Frees a frame when a process exits (unmaps and releases). 
    Called in destroy_spe () */

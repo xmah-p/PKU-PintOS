@@ -26,7 +26,6 @@ struct sup_page_entry
     size_t read_bytes;        /* Bytes to read */
     size_t zero_bytes;        /* Bytes to zero */
     block_sector_t swap_slot; /* Swap slot index if PAGE_SWAP, else -1 */
-    struct frame_entry *fe;   /* Frame entry if PAGE_BIN or PAGE_ZERO */
     bool writable;
   };
 
@@ -41,7 +40,7 @@ bool suppagedir_install_zero_page (struct hash *spt, upage_t upage,
                                    bool writable);
 
 void suppagedir_destroy (struct hash *spt);
-void suppagedir_set_page_evicted (struct hash *spt, upage_t upage,
+void suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
                                  block_sector_t swap_slot);
 bool load_page_from_spt (void *fault_addr);
 
