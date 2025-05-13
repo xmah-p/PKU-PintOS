@@ -8,6 +8,7 @@
 typedef void * kpage_t; /* Kernel page (physical address) */
 typedef void * upage_t; /* User page (virtual address) */
 
+/* Frame table entry */
 struct frame_entry
   {
     struct hash_elem h_elem;   /* Hash element (keyed by kpage) */

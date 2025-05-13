@@ -128,9 +128,7 @@ frame_alloc (upage_t upage)
       slot = swap_write (victim->kpage);
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
       struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
-      lock_acquire (spt_lock);
-      spt_set_page_swapped (spt, victim->upage, slot);
-      lock_release (spt_lock);
+      spt_set_page_swapped (spt, spt_lock, victim->upage, slot);
     }
 
   /* Update victim's owner and upage. */

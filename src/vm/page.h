@@ -15,7 +15,7 @@
 enum page_type { PAGE_BIN, PAGE_ZERO, PAGE_SWAP };
 
 /* Supplemental page table entry */
-struct sup_page_entry 
+struct spt_entry 
   {
     struct hash_elem h_elem;
     upage_t upage;               /* User virtual page (key) */
@@ -26,6 +26,7 @@ struct sup_page_entry
     size_t zero_bytes;        /* Bytes to zero */
     block_sector_t swap_slot; /* Swap slot index if PAGE_SWAP, else -1 */
     bool writable;
+    struct lock spte_lock;    /* Lock for this entry */
   };
 
 void spt_init (struct hash *spt);
@@ -39,8 +40,8 @@ bool spt_install_zero_page (struct hash *spt, upage_t upage,
                                    bool writable);
 
 void spt_destroy (struct hash *spt);
-void spt_set_page_swapped (struct hash *spt, upage_t upage,
-                                 block_sector_t swap_slot);
+void spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
+                           upage_t upage, block_sector_t swap_slot);
 bool load_page_from_spt (void *fault_addr);
 
 #endif /**< vm/page.h */
