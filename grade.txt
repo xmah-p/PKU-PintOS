@@ -380,8 +380,39 @@ i386-elf-gcc -c ../../tests/userprog/child-rox.c -o tests/userprog/child-rox.o -
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/userprog/child-rox.o tests/lib.o lib/user/entry.o libc.a -o tests/userprog/child-rox
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/rox-child -a rox-child -p tests/userprog/child-rox -a child-rox --swap-size=4 -- -q  -f run rox-child < /dev/null 2> tests/userprog/rox-child.errors > tests/userprog/rox-child.output
 perl -I../.. ../../tests/userprog/rox-child.ck tests/userprog/rox-child tests/userprog/rox-child.result
-[32mpass tests/userprog/rox-child
-[0mi386-elf-gcc -c ../../tests/userprog/rox-multichild.c -o tests/userprog/rox-multichild.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/userprog/rox-multichild.d
+[31mFAIL tests/userprog/rox-child
+[0mTest output failed to match any acceptable form.
+
+Acceptable output:
+  (rox-child) begin
+  (rox-child) open "child-rox"
+  (rox-child) read "child-rox"
+  (rox-child) write "child-rox"
+  (rox-child) exec "child-rox 1"
+  (child-rox) begin
+  (child-rox) try to write "child-rox"
+  (child-rox) try to write "child-rox"
+  (child-rox) end
+  child-rox: exit(12)
+  (rox-child) write "child-rox"
+  (rox-child) end
+  rox-child: exit(0)
+Differences in `diff -u' format:
+- (rox-child) begin
++ (ro(rox-child) begin
+  (rox-child) open "child-rox"
+  (rox-child) read "child-rox"
+  (rox-child) write "child-rox"
+  (rox-child) exec "child-rox 1"
+  (child-rox) begin
+  (child-rox) try to write "child-rox"
+  (child-rox) try to write "child-rox"
+  (child-rox) end
+  child-rox: exit(12)
+  (rox-child) write "child-rox"
+  (rox-child) end
+  rox-child: exit(0)
+i386-elf-gcc -c ../../tests/userprog/rox-multichild.c -o tests/userprog/rox-multichild.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/userprog/rox-multichild.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/userprog/rox-multichild.o tests/main.o tests/lib.o lib/user/entry.o libc.a -o tests/userprog/rox-multichild
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/rox-multichild -a rox-multichild -p tests/userprog/child-rox -a child-rox --swap-size=4 -- -q  -f run rox-multichild < /dev/null 2> tests/userprog/rox-multichild.errors > tests/userprog/rox-multichild.output
 perl -I../.. ../../tests/userprog/rox-multichild.ck tests/userprog/rox-multichild tests/userprog/rox-multichild.result
@@ -558,9 +589,8 @@ i386-elf-gcc -c ../../tests/vm/child-linear.c -o tests/vm/child-linear.o -m32 -g
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/child-linear.o tests/arc4.o tests/lib.o lib/user/entry.o libc.a -o tests/vm/child-linear
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/page-parallel -a page-parallel -p tests/vm/child-linear -a child-linear --swap-size=4 -- -q  -f run page-parallel < /dev/null 2> tests/vm/page-parallel.errors > tests/vm/page-parallel.output
 perl -I../.. ../../tests/vm/page-parallel.ck tests/vm/page-parallel tests/vm/page-parallel.result
-[31mFAIL tests/vm/page-parallel
-[0mrun: TIMEOUT after 60 seconds of wall-clock time - load average: 0.33, 0.28, 0.12
-i386-elf-gcc -c ../../tests/vm/page-merge-seq.c -o tests/vm/page-merge-seq.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/page-merge-seq.d
+[32mpass tests/vm/page-parallel
+[0mi386-elf-gcc -c ../../tests/vm/page-merge-seq.c -o tests/vm/page-merge-seq.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/page-merge-seq.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/page-merge-seq.o tests/arc4.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/page-merge-seq
 i386-elf-gcc -c ../../tests/vm/child-sort.c -o tests/vm/child-sort.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/child-sort.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/child-sort.o tests/lib.o lib/user/entry.o libc.a -o tests/vm/child-sort
@@ -1025,11 +1055,11 @@ pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/filesys/base/syn-write -a s
 perl -I../.. ../../tests/filesys/base/syn-write.ck tests/filesys/base/syn-write tests/filesys/base/syn-write.result
 [32mpass tests/filesys/base/syn-write
 [0m../../tests/make-grade ../.. results ../../tests/vm/Grading | tee grade
-warning: test tests/userprog/exec-bound-3 doesn't count for grading
-warning: test tests/userprog/sc-boundary-3 doesn't count for grading
-warning: test tests/userprog/exec-bound doesn't count for grading
 warning: test tests/userprog/exec-bound-2 doesn't count for grading
-TOTAL TESTING SCORE: 58.1%
+warning: test tests/userprog/exec-bound doesn't count for grading
+warning: test tests/userprog/sc-boundary-3 doesn't count for grading
+warning: test tests/userprog/exec-bound-3 doesn't count for grading
+TOTAL TESTING SCORE: 60.6%
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -1037,13 +1067,13 @@ SUMMARY BY TEST SET
 
 Test Set                                      Pts Max  % Ttl  % Max
 --------------------------------------------- --- --- ------ ------
-tests/vm/Rubric.functionality                  16/ 55  14.5%/ 50.0%
+tests/vm/Rubric.functionality                  19/ 55  17.3%/ 50.0%
 tests/vm/Rubric.robustness                     16/ 28   8.6%/ 15.0%
-tests/userprog/Rubric.functionality           108/108  10.0%/ 10.0%
+tests/userprog/Rubric.functionality           105/108   9.7%/ 10.0%
 tests/userprog/Rubric.robustness               88/ 88   5.0%/  5.0%
 tests/filesys/base/Rubric                      30/ 30  20.0%/ 20.0%
 --------------------------------------------- --- --- ------ ------
-Total                                                  58.1%/100.0%
+Total                                                  60.6%/100.0%
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -1058,7 +1088,7 @@ Functionality of virtual memory subsystem (tests/vm/Rubric.functionality):
 
 	- Test paging behavior.
 	     3/ 3 tests/vm/page-linear
-	  ** 0/ 3 tests/vm/page-parallel
+	     3/ 3 tests/vm/page-parallel
 	     3/ 3 tests/vm/page-shuffle
 	     4/ 4 tests/vm/page-merge-seq
 	     4/ 4 tests/vm/page-merge-par
@@ -1081,8 +1111,8 @@ Functionality of virtual memory subsystem (tests/vm/Rubric.functionality):
 	  ** 0/ 2 tests/vm/mmap-remove
 
 	- Section summary.
-	      5/ 20 tests passed
-	     16/ 55 points subtotal
+	      6/ 20 tests passed
+	     19/ 55 points subtotal
 
 Robustness of virtual memory subsystem (tests/vm/Rubric.robustness):
 	- Test robustness of page table support.
@@ -1160,12 +1190,12 @@ Functionality of system calls (tests/userprog/Rubric.functionality):
 
 	- Test read-only executable feature.
 	     3/ 3 tests/userprog/rox-simple
-	     3/ 3 tests/userprog/rox-child
+	  ** 0/ 3 tests/userprog/rox-child
 	     3/ 3 tests/userprog/rox-multichild
 
 	- Section summary.
-	     28/ 28 tests passed
-	    108/108 points subtotal
+	     27/ 28 tests passed
+	    105/108 points subtotal
 
 Robustness of system calls (tests/userprog/Rubric.robustness):
 	- Test robustness of file descriptor handling.
@@ -1272,14 +1302,14 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/pt-grow-stack:
 
 Copying tests/vm/pt-grow-stack to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/6Pv0LgPQS7.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/eQPQym2xx0.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run pt-grow-stack
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  65,433,600 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -1304,12 +1334,12 @@ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x8048080
  cs=001b ds=0023 es=0023 ss=0023
 pt-grow-stack: exit(-1)
 Execution of 'pt-grow-stack' complete.
-Timer: 61 ticks
-Thread: 34 idle ticks, 25 kernel ticks, 2 user ticks
+Timer: 64 ticks
+Thread: 35 idle ticks, 27 kernel ticks, 2 user ticks
 hda2 (filesys): 60 reads, 162 writes
 hda3 (scratch): 78 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1360 characters output
+Console: 1359 characters output
 Keyboard: 0 keys pressed
 Exception: 6 page faults
 Powering off...
@@ -1351,7 +1381,7 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/pt-grow-stk-sc:
 
 Copying tests/vm/pt-grow-stk-sc to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/kBfCtmyBOG.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/Fyg9toPvtw.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run pt-grow-stk-sc
@@ -1383,8 +1413,8 @@ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x8048080
  cs=001b ds=0023 es=0023 ss=0023
 pt-grow-stk-sc: exit(-1)
 Execution of 'pt-grow-stk-sc' complete.
-Timer: 59 ticks
-Thread: 35 idle ticks, 22 kernel ticks, 2 user ticks
+Timer: 62 ticks
+Thread: 35 idle ticks, 25 kernel ticks, 2 user ticks
 hda2 (filesys): 59 reads, 154 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -1420,7 +1450,7 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/pt-big-stk-obj:
 
 Copying tests/vm/pt-big-stk-obj to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/Ww2715ObxW.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/6zuEzE6TYc.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run pt-big-stk-obj
@@ -1452,8 +1482,8 @@ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x8048080
  cs=001b ds=0023 es=0023 ss=0023
 pt-big-stk-obj: exit(-1)
 Execution of 'pt-big-stk-obj' complete.
-Timer: 64 ticks
-Thread: 36 idle ticks, 25 kernel ticks, 3 user ticks
+Timer: 57 ticks
+Thread: 32 idle ticks, 23 kernel ticks, 2 user ticks
 hda2 (filesys): 60 reads, 162 writes
 hda3 (scratch): 78 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -1487,14 +1517,14 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/pt-grow-pusha:
 
 Copying tests/vm/pt-grow-pusha to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/_eXoxyjAIn.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/bZqr6pNtBA.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run pt-grow-pusha
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  78,540,800 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -1520,58 +1550,14 @@ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x804807f
 pt-grow-pusha: exit(-1)
 Execution of 'pt-grow-pusha' complete.
 Timer: 59 ticks
-Thread: 35 idle ticks, 22 kernel ticks, 2 user ticks
+Thread: 35 idle ticks, 24 kernel ticks, 1 user ticks
 hda2 (filesys): 64 reads, 148 writes
 hda3 (scratch): 71 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1360 characters output
+Console: 1359 characters output
 Keyboard: 0 keys pressed
 Exception: 7 page faults
 Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/page-parallel FAILURE:
-
-run: TIMEOUT after 60 seconds of wall-clock time - load average: 0.33, 0.28, 0.12
-
-OUTPUT FROM tests/vm/page-parallel:
-
-Copying tests/vm/page-parallel to scratch partition...
-Copying tests/vm/child-linear to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/k2pb50BRB7.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run page-parallel
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 217 sectors (108 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 145 sectors (72 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'page-parallel' into the file system...
-Putting 'child-linear' into the file system...
-Erasing ustar archive...
-Executing 'page-parallel':
-(page-parallel) begin
-(page-parallel) exec "child-linear"
-(page-parallel) exec "child-linear"
-(page-parallel) exec "child-linear"
-(page-parallel) exec "child-linear"
-child-linear: exit(66)
-(page-parallel) wait for child 0
-child-linear: exit(66)
-
-TIMEOUT after 60 seconds of wall-clock time - load average: 0.33, 0.28, 0.12
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -1583,14 +1569,14 @@ OUTPUT FROM tests/vm/page-merge-mm:
 
 Copying tests/vm/page-merge-mm to scratch partition...
 Copying tests/vm/child-qsort-mm to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/5Vdg56WxQV.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/qZfG4cnrFp.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run page-merge-mm
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  52,377,600 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -1628,12 +1614,12 @@ child-qsort-mm: exit(-1)
 page-merge-mm: exit(1)
 child-qsort-mm: exit(-1)
 Execution of 'page-merge-mm' complete.
-Timer: 161 ticks
-Thread: 88 idle ticks, 28 kernel ticks, 45 user ticks
+Timer: 150 ticks
+Thread: 88 idle ticks, 22 kernel ticks, 40 user ticks
 hda2 (filesys): 621 reads, 4442 writes
 hda3 (scratch): 153 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1569 characters output
+Console: 1568 characters output
 Keyboard: 0 keys pressed
 Exception: 295 page faults
 Powering off...
@@ -1648,14 +1634,14 @@ OUTPUT FROM tests/vm/page-merge-stk:
 
 Copying tests/vm/page-merge-stk to scratch partition...
 Copying tests/vm/child-qsort to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/UjRLVAqDAu.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/lamU5sBPxR.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run page-merge-stk
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  53,964,800 loops/s.
+Calibrating timer...  104,755,200 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -1749,12 +1735,12 @@ Interrupt 0x0e (#PF Page-Fault Exception) at eip=0x804809d
  cs=001b ds=0023 es=0023 ss=0023
 child-qsort: exit(-1)
 Execution of 'page-merge-stk' complete.
-Timer: 165 ticks
-Thread: 84 idle ticks, 27 kernel ticks, 54 user ticks
+Timer: 163 ticks
+Thread: 90 idle ticks, 23 kernel ticks, 50 user ticks
 hda2 (filesys): 489 reads, 4442 writes
 hda3 (scratch): 153 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 4518 characters output
+Console: 4519 characters output
 Keyboard: 0 keys pressed
 Exception: 295 page faults
 Powering off...
@@ -1782,14 +1768,14 @@ OUTPUT FROM tests/vm/mmap-read:
 
 Copying tests/vm/mmap-read to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/UbEYNayG8V.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/Ll7TujzkPo.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-read
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  58,880,000 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -1810,12 +1796,12 @@ Executing 'mmap-read':
 (mmap-read) mmap "sample.txt"
 mmap-read: exit(-1)
 Execution of 'mmap-read' complete.
-Timer: 57 ticks
-Thread: 35 idle ticks, 21 kernel ticks, 1 user ticks
+Timer: 63 ticks
+Thread: 35 idle ticks, 27 kernel ticks, 1 user ticks
 hda2 (filesys): 88 reads, 162 writes
 hda3 (scratch): 77 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1069 characters output
+Console: 1068 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
 Powering off...
@@ -1846,7 +1832,7 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/mmap-write:
 
 Copying tests/vm/mmap-write to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/O50DsdDsQ6.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/oRt3bln2fH.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-write
@@ -1874,8 +1860,8 @@ Executing 'mmap-write':
 (mmap-write) mmap "sample.txt"
 mmap-write: exit(-1)
 Execution of 'mmap-write' complete.
-Timer: 59 ticks
-Thread: 35 idle ticks, 21 kernel ticks, 3 user ticks
+Timer: 61 ticks
+Thread: 35 idle ticks, 24 kernel ticks, 2 user ticks
 hda2 (filesys): 83 reads, 160 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -1930,7 +1916,7 @@ Differences in `diff -u' format:
 OUTPUT FROM tests/vm/mmap-shuffle:
 
 Copying tests/vm/mmap-shuffle to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/V9jr99VDhV.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/zksyUqdakI.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-shuffle
@@ -1958,8 +1944,8 @@ Executing 'mmap-shuffle':
 (mmap-shuffle) mmap "buffer"
 mmap-shuffle: exit(-1)
 Execution of 'mmap-shuffle' complete.
-Timer: 63 ticks
-Thread: 37 idle ticks, 23 kernel ticks, 3 user ticks
+Timer: 62 ticks
+Thread: 37 idle ticks, 23 kernel ticks, 2 user ticks
 hda2 (filesys): 86 reads, 424 writes
 hda3 (scratch): 79 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -1999,14 +1985,14 @@ OUTPUT FROM tests/vm/mmap-twice:
 
 Copying tests/vm/mmap-twice to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/24FoJtnODs.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/eZ3UTso8SD.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-twice
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  52,377,600 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2028,11 +2014,11 @@ Executing 'mmap-twice':
 mmap-twice: exit(-1)
 Execution of 'mmap-twice' complete.
 Timer: 60 ticks
-Thread: 36 idle ticks, 23 kernel ticks, 1 user ticks
+Thread: 38 idle ticks, 22 kernel ticks, 1 user ticks
 hda2 (filesys): 88 reads, 162 writes
 hda3 (scratch): 77 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1097 characters output
+Console: 1096 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
 Powering off...
@@ -2047,14 +2033,14 @@ OUTPUT FROM tests/vm/mmap-exit:
 
 Copying tests/vm/mmap-exit to scratch partition...
 Copying tests/vm/child-mm-wrt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/QV1eanK0AM.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/6SXJNcGPAY.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-exit
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  58,880,000 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2079,12 +2065,12 @@ child-mm-wrt: exit(-1)
 (mmap-exit) wait for child (should return 0): FAILED
 mmap-exit: exit(1)
 Execution of 'mmap-exit' complete.
-Timer: 64 ticks
-Thread: 38 idle ticks, 23 kernel ticks, 3 user ticks
+Timer: 67 ticks
+Thread: 37 idle ticks, 27 kernel ticks, 3 user ticks
 hda2 (filesys): 142 reads, 304 writes
 hda3 (scratch): 145 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1211 characters output
+Console: 1210 characters output
 Keyboard: 0 keys pressed
 Exception: 10 page faults
 Powering off...
@@ -2122,14 +2108,14 @@ OUTPUT FROM tests/vm/mmap-clean:
 
 Copying tests/vm/mmap-clean to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/FfzjHB_2aQ.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/JWo1fHWPwo.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-clean
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  58,470,400 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2150,12 +2136,12 @@ Executing 'mmap-clean':
 (mmap-clean) mmap "sample.txt"
 mmap-clean: exit(-1)
 Execution of 'mmap-clean' complete.
-Timer: 58 ticks
-Thread: 35 idle ticks, 21 kernel ticks, 2 user ticks
+Timer: 64 ticks
+Thread: 36 idle ticks, 28 kernel ticks, 1 user ticks
 hda2 (filesys): 91 reads, 164 writes
 hda3 (scratch): 78 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1077 characters output
+Console: 1076 characters output
 Keyboard: 0 keys pressed
 Exception: 6 page faults
 Powering off...
@@ -2183,14 +2169,14 @@ OUTPUT FROM tests/vm/mmap-close:
 
 Copying tests/vm/mmap-close to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/72RXbARmPT.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/17Z6mPqa_K.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-close
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  91,238,400 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2212,11 +2198,11 @@ Executing 'mmap-close':
 mmap-close: exit(-1)
 Execution of 'mmap-close' complete.
 Timer: 59 ticks
-Thread: 32 idle ticks, 25 kernel ticks, 2 user ticks
+Thread: 36 idle ticks, 23 kernel ticks, 1 user ticks
 hda2 (filesys): 88 reads, 160 writes
 hda3 (scratch): 76 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1077 characters output
+Console: 1076 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
 Powering off...
@@ -2250,7 +2236,7 @@ OUTPUT FROM tests/vm/mmap-remove:
 
 Copying tests/vm/mmap-remove to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/t7OOyjaCYU.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/ZxFRExzu5f.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-remove
@@ -2278,8 +2264,8 @@ Executing 'mmap-remove':
 (mmap-remove) mmap "sample.txt"
 mmap-remove: exit(-1)
 Execution of 'mmap-remove' complete.
-Timer: 63 ticks
-Thread: 34 idle ticks, 28 kernel ticks, 1 user ticks
+Timer: 61 ticks
+Thread: 34 idle ticks, 26 kernel ticks, 1 user ticks
 hda2 (filesys): 88 reads, 162 writes
 hda3 (scratch): 77 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -2323,14 +2309,14 @@ OUTPUT FROM tests/vm/mmap-inherit:
 Copying tests/vm/mmap-inherit to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
 Copying tests/vm/child-inherit to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/OAIVv60hJW.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/fy9Vbi2EWG.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-inherit
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  65,433,600 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2352,12 +2338,12 @@ Executing 'mmap-inherit':
 (mmap-inherit) mmap "sample.txt"
 mmap-inherit: exit(-1)
 Execution of 'mmap-inherit' complete.
-Timer: 61 ticks
-Thread: 36 idle ticks, 25 kernel ticks, 0 user ticks
+Timer: 68 ticks
+Thread: 37 idle ticks, 30 kernel ticks, 1 user ticks
 hda2 (filesys): 115 reads, 306 writes
 hda3 (scratch): 148 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1144 characters output
+Console: 1143 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
 Powering off...
@@ -2385,7 +2371,7 @@ OUTPUT FROM tests/vm/mmap-null:
 
 Copying tests/vm/mmap-null to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/jMWpG6TXUW.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/0_J4dC2Ado.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-null
@@ -2413,8 +2399,8 @@ Executing 'mmap-null':
 (mmap-null) try to mmap at address 0
 mmap-null: exit(-1)
 Execution of 'mmap-null' complete.
-Timer: 60 ticks
-Thread: 36 idle ticks, 24 kernel ticks, 1 user ticks
+Timer: 63 ticks
+Thread: 37 idle ticks, 24 kernel ticks, 2 user ticks
 hda2 (filesys): 86 reads, 156 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -2446,14 +2432,14 @@ OUTPUT FROM tests/vm/mmap-misalign:
 
 Copying tests/vm/mmap-misalign to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/cVy5zCi0uH.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/YjlNQOFKGr.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-misalign
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  78,540,800 loops/s.
+Calibrating timer...  65,433,600 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2474,8 +2460,8 @@ Executing 'mmap-misalign':
 (mmap-misalign) try to mmap at misaligned address
 mmap-misalign: exit(-1)
 Execution of 'mmap-misalign' complete.
-Timer: 62 ticks
-Thread: 36 idle ticks, 25 kernel ticks, 1 user ticks
+Timer: 61 ticks
+Thread: 36 idle ticks, 24 kernel ticks, 1 user ticks
 hda2 (filesys): 86 reads, 156 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -2507,14 +2493,14 @@ OUTPUT FROM tests/vm/mmap-over-code:
 
 Copying tests/vm/mmap-over-code to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/KRqoLMakGB.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/bgGxSKtGW2.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-over-code
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  89,190,400 loops/s.
+Calibrating timer...  64,716,800 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2535,8 +2521,8 @@ Executing 'mmap-over-code':
 (mmap-over-code) try to mmap over code segment
 mmap-over-code: exit(-1)
 Execution of 'mmap-over-code' complete.
-Timer: 63 ticks
-Thread: 36 idle ticks, 26 kernel ticks, 1 user ticks
+Timer: 66 ticks
+Thread: 35 idle ticks, 29 kernel ticks, 2 user ticks
 hda2 (filesys): 86 reads, 156 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -2568,14 +2554,14 @@ OUTPUT FROM tests/vm/mmap-over-data:
 
 Copying tests/vm/mmap-over-data to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/ILu3CZVSZh.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/CImvulb1aX.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-over-data
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  55,603,200 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2596,12 +2582,12 @@ Executing 'mmap-over-data':
 (mmap-over-data) try to mmap over data segment
 mmap-over-data: exit(-1)
 Execution of 'mmap-over-data' complete.
-Timer: 58 ticks
-Thread: 33 idle ticks, 24 kernel ticks, 1 user ticks
+Timer: 65 ticks
+Thread: 36 idle ticks, 28 kernel ticks, 1 user ticks
 hda2 (filesys): 86 reads, 156 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1121 characters output
+Console: 1120 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
 Powering off...
@@ -2629,7 +2615,7 @@ OUTPUT FROM tests/vm/mmap-over-stk:
 
 Copying tests/vm/mmap-over-stk to scratch partition...
 Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/_lz4nqEyDU.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/HJyKpi4E8q.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-over-stk
@@ -2657,8 +2643,8 @@ Executing 'mmap-over-stk':
 (mmap-over-stk) try to mmap over stack segment
 mmap-over-stk: exit(-1)
 Execution of 'mmap-over-stk' complete.
-Timer: 60 ticks
-Thread: 36 idle ticks, 23 kernel ticks, 1 user ticks
+Timer: 59 ticks
+Thread: 35 idle ticks, 24 kernel ticks, 1 user ticks
 hda2 (filesys): 86 reads, 156 writes
 hda3 (scratch): 74 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
@@ -2694,14 +2680,14 @@ OUTPUT FROM tests/vm/mmap-overlap:
 
 Copying tests/vm/mmap-overlap to scratch partition...
 Copying tests/vm/zeros to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/_9MvaQoulE.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/5QjoT46vH2.dsk -m 4 -net none -nographic -monitor null
 Pintos hda1
 Loading.............
 Kernel command line: -q -f extract run mmap-overlap
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
+Calibrating timer...  91,648,000 loops/s.
 hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
 hda1: 217 sectors (108 kB), Pintos OS kernel (20)
 hda2: 4,096 sectors (2 MB), Pintos file system (21)
@@ -2722,13 +2708,100 @@ Executing 'mmap-overlap':
 (mmap-overlap) mmap "zeros"
 mmap-overlap: exit(-1)
 Execution of 'mmap-overlap' complete.
-Timer: 60 ticks
-Thread: 35 idle ticks, 23 kernel ticks, 2 user ticks
+Timer: 62 ticks
+Thread: 34 idle ticks, 26 kernel ticks, 2 user ticks
 hda2 (filesys): 87 reads, 180 writes
 hda3 (scratch): 86 reads, 2 writes
 hda4 (swap): 0 reads, 0 writes
-Console: 1083 characters output
+Console: 1082 characters output
 Keyboard: 0 keys pressed
 Exception: 5 page faults
+Powering off...
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+DETAILS OF tests/userprog/rox-child FAILURE:
+
+Test output failed to match any acceptable form.
+
+Acceptable output:
+  (rox-child) begin
+  (rox-child) open "child-rox"
+  (rox-child) read "child-rox"
+  (rox-child) write "child-rox"
+  (rox-child) exec "child-rox 1"
+  (child-rox) begin
+  (child-rox) try to write "child-rox"
+  (child-rox) try to write "child-rox"
+  (child-rox) end
+  child-rox: exit(12)
+  (rox-child) write "child-rox"
+  (rox-child) end
+  rox-child: exit(0)
+Differences in `diff -u' format:
+- (rox-child) begin
++ (ro(rox-child) begin
+  (rox-child) open "child-rox"
+  (rox-child) read "child-rox"
+  (rox-child) write "child-rox"
+  (rox-child) exec "child-rox 1"
+  (child-rox) begin
+  (child-rox) try to write "child-rox"
+  (child-rox) try to write "child-rox"
+  (child-rox) end
+  child-rox: exit(12)
+  (rox-child) write "child-rox"
+  (rox-child) end
+  rox-child: exit(0)
+
+OUTPUT FROM tests/userprog/rox-child:
+
+Copying tests/userprog/rox-child to scratch partition...
+Copying tests/userprog/child-rox to scratch partition...
+qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/VlFf1Fu6c2.dsk -m 4 -net none -nographic -monitor null
+Pintos hda1
+Loading.............
+Kernel command line: -q -f extract run rox-child
+Pintos booting with 3,968 kB RAM...
+367 pages available in kernel pool.
+367 pages available in user pool.
+Calibrating timer...  94,310,400 loops/s.
+hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 217 sectors (108 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 151 sectors (75 kB), Pintos scratch (22)
+hda4: 8,192 sectors (4 MB), Pintos swap (23)
+filesys: using hda2
+scratch: using hda3
+swap: using hda4
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'rox-child' into the file system...
+Putting 'child-rox' into the file system...
+Erasing ustar archive...
+Executing 'rox-child':
+(ro(rox-child) begin
+(rox-child) open "child-rox"
+(rox-child) read "child-rox"
+(rox-child) write "child-rox"
+(rox-child) exec "child-rox 1"
+(child-rox) begin
+(child-rox) try to write "child-rox"
+(child-rox) try to write "child-rox"
+(child-rox) end
+child-rox: exit(12)
+(rox-child) write "child-rox"
+(rox-child) end
+rox-child: exit(0)
+Execution of 'rox-child' complete.
+Timer: 71 ticks
+Thread: 35 idle ticks, 32 kernel ticks, 4 user ticks
+hda2 (filesys): 133 reads, 310 writes
+hda3 (scratch): 150 reads, 2 writes
+hda4 (swap): 0 reads, 0 writes
+Console: 1302 characters output
+Keyboard: 0 keys pressed
+Exception: 11 page faults
 Powering off...
 make[1]: Leaving directory '/home/PKUOS/pintos/src/vm/build'

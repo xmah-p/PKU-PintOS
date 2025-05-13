@@ -29,7 +29,7 @@ void frame_init (void);
 kpage_t frame_alloc (upage_t upage);
 
 /* Frees a frame when a process exits (unmaps and releases). 
-   Called in destroy_spe () */
+   Called in destroy_spte () */
 void frame_free (kpage_t kpage);
 
 /* Pins/unpins a frame to prevent/allow eviction. */
