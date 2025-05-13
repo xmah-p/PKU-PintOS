@@ -105,7 +105,7 @@ suppagedir_find (struct hash *spt, upage_t upage)
   return he ? hash_entry (he, struct spt_entry, h_elem) : NULL;
 }
 
-/* On page fault: load page from file/swap/zero. */
+/* On page fault: load page by spt. */
 bool 
 load_page_from_spt (void *fault_addr) 
 {
@@ -127,59 +127,63 @@ load_page_from_spt (void *fault_addr)
   struct spt_entry spe = *spe_ptr;
   lock_release (spte_lock);
 
-  if (spe.type == PAGE_ZERO) 
+  switch (spe.type) 
     {
-      memset (kpage, 0, PGSIZE);
-
-      if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable))
+      case PAGE_ZERO:
+        memset (kpage, 0, PGSIZE);
+    
+        if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable)) 
         {
           frame_free (kpage);
           return false;
         }
-      pagedir_set_dirty (t->pagedir, upage, true);
-
-      frame_set_pinned (kpage, false);
-      return true;
-    }
-
-  /* Backed by file */
-  else if (spe.type == PAGE_BIN) 
-    {      
-      lock_acquire (&filesys_lock);
-      file_seek (spe.file, spe.ofs);
-      size_t r = file_read (spe.file, kpage, spe.read_bytes);
-      lock_release (&filesys_lock);
-      if (r != spe.read_bytes) 
+        pagedir_set_dirty (t->pagedir, upage, true);
+        frame_set_pinned (kpage, false);
+        return true;
+    
+      case PAGE_BIN:
+        lock_acquire (&filesys_lock);
+        file_seek (spe.file, spe.ofs);
+        size_t r = file_read (spe.file, kpage, spe.read_bytes);
+        lock_release (&filesys_lock);
+    
+        if (r != spe.read_bytes) 
         {
           /* read error */
           frame_free (kpage);
           return false;
         }
-
-      memset (kpage + spe.read_bytes, 0, spe.zero_bytes);   
-
-      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
-
-      frame_set_pinned (kpage, false);
-      return succ;
+    
+        memset(kpage + spe.read_bytes, 0, spe.zero_bytes);
+    
+        if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable)) 
+        {
+          frame_free (kpage);
+          return false;
+        }
+    
+        frame_set_pinned (kpage, false);
+        return true;
+    
+      case PAGE_SWAP:
+        swap_read (spe.swap_slot, kpage);
+    
+        lock_acquire (spte_lock);
+        spe_ptr->swap_slot = (block_sector_t) -1;
+        lock_release (spte_lock);
+    
+        if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable)) 
+        {
+          frame_free (kpage);
+          return false;
+        }
+        pagedir_set_dirty (t->pagedir, upage, true);
+        frame_set_pinned (kpage, false);
+        return true;
+    
+      default:
+        PANIC ("load_page_from_spt: unknown page type");
     }
-
-  /* Swapped out */
-  else if (spe.type == PAGE_SWAP) 
-    {
-      swap_read (spe.swap_slot, kpage);
-
-      lock_acquire (spte_lock);
-      spe_ptr->swap_slot = (block_sector_t) -1;    /* Do not modify copy */
-      lock_release (spte_lock);
-
-      bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
-      pagedir_set_dirty (t->pagedir, upage, true);
-
-      frame_set_pinned (kpage, false);
-      return succ;
-    }
-  
   NOT_REACHED ();
 }
 
