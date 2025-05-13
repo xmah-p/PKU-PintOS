@@ -8,7 +8,7 @@ Yixin Yang (杨艺欣) <yangyixin@stu.pku.edu.cn>
 
 >If you have any preliminary comments on your submission, notes for the TAs, please give them here.
 
-All tests specified in the Lab 3a documentation have passed.
+All tests specified in the Lab 3a documentation have passed (tested for multiple times).
 
 >Please cite any offline or online sources you consulted while preparing your submission, other than the Pintos documentation, course text, lecture notes, and course staff.
 
@@ -154,7 +154,7 @@ There are two cases for accessing the SPT data:
 
 The first case is when a not-present page fault occurs. The faulting address is passed to `load_page_by_spt()`, which does the following:  
 1. Checks if the user virtual page corresponding to the faulting address is present in the SPT. If not, it returns false (which will cause the page fault handler to print an error message and kill the process).
-2. If the page is in the SPT, it locks the corresponding SPT entry, makes a copy of the entry (to avoid race conditions for reads), and unlocks the entry. Subsequent reads to the entry will be done using the copy. Only writes will require acquiring and releasing the SPT entry lock.
+2. If the page is in the SPT, locks the corresponding SPT entry, makes a copy of the entry (to avoid race conditions for reads), and unlocks the entry. Subsequent reads to the entry will be done using the copy. Only writes will require acquiring and releasing the SPT entry lock.
 3. Allocates a kernel page using `frame_alloc()`, which uses `palloc()` to allocate a frame from the user pool, or evicts one if `palloc()` fails. The allocated frame is pinned to prevent eviction. 
 4. Loads the page:  
     - If the page is zeroed, `memset()` it with zeroes.
@@ -169,7 +169,7 @@ The second case is when `frame_alloc` evicts a dirty victim frame. After the fra
 >kernel and user virtual addresses that alias a single frame, or
 >alternatively how do you avoid the issue?
 
-I avoid the issue by only accessing the page table by user virtual addresses.
+I avoided the issue by only accessing the page table by user virtual addresses.
 
 The only exception is in `load_page_by_spt()`, where I need to access the page table by kernel addresses. It does not count as accessing or dirtying the page, since the page is not yet mapped to the user process. 
 
@@ -194,7 +194,7 @@ SPT:
 - The SPT is stored in the process's `proc_info` struct, protected by a table lock `spt_lock`. Each entry in the SPT has an entry lock `spte_lock` to protect the entry itself. This allows more fine-grained locking, enabling higher parallelism.
 
 Frame table:  
-- We use a hash table and a list to store frame table entries. We use the hash table to look up the corresponding frame table entry by its kernel page. The list is used by the eviction algorithm (clock) to pick a victim frame.
+- We use a hash table and a list to store frame table entries. The hash table is used to look up the corresponding frame table entry by its kernel page. The list is used by the eviction algorithm to pick a victim frame.
     - The reason to use hash table is the same as in SPT: fast lookup.
     - The clock algorithm needs to iterate over all frame entries. Lists provide a much more straightforward way to do this than hash tables. Plus, it is easier to make a circular list than a circular hash table.
 - The frame table is protected by a single lock `frame_lock`.
@@ -267,12 +267,12 @@ Locks corresponding to Lab 3a:
 - Swap lock `swap_lock` (global): protects the swap system.
 - Filesystem lock `filesys_lock` (global): protects the filesystem.
 
-Deadlock happens when **NESTED** locks are acquired in **INCONSISTENT ORDER**s. Based on this, I carefully designed the lock acquisition in my code:  
-- Nested locks are avoid at best:
-    - In function `load`, `filesys_lock` is released before lazy segment loading (which does not touch the filesystem), and re-acquired after. This prevents the nesting of `filesys_lock` and `spt_lock` (which is acquired in `lazy_load_page()`).
+Deadlock happens when **nested** locks are acquired in **inconsistent orders**. Based on this, I carefully designed the synchronization logic:  
+- Nested locks are avoided at best:
+    - In function `load`, `filesys_lock` is released before lazy segment loading (which does not touch the file system), and re-acquired after. This prevents the nesting of `filesys_lock` and `spt_lock` (which is acquired in `lazy_load_page()`).
     - In `load_page_by_spt()`, although all five locks are used, none of them are explicitly nested. This is achieved mainly by carefully lock releasing and **making a local copy of the shared SPT entry**: 
       - After a frame is allocated by `frame_alloc()`, the SPT table lock `spt_lock` is used to lookup the SPT entry. Once the entry is found, `spt_lock` is released immediately and the entry lock `spte_lock` is acquired. Then, a copy of the entry is made and `spte_lock` is released. Any subsequent reads to the entry will be done using the copy, and only writes will require acquiring and releasing the SPT entry lock.
-- There are four instances of lock nesting in my whole Lab 3a code: 
+- There are three instances of lock nesting in my whole Lab 3a code: 
     - `spt_lock` and `spte_lock` acquired independently inside critical section of `frame_lock`, in `frame_alloc()`.
     - `swap_lock` inside that of `frame_lock`, in `frame_alloc()`.
     - `spte_lock` inside that of `spt_lock`, which in turn inside that of `frame_lock`, in `spt_destroy()`. 
@@ -289,7 +289,7 @@ I ran `page-parallel` test for more than 35 times, and my submission code passed
 
 After P picks Q's frame, **before the evicting process starts**, P will clear Q's page table entry, so that any access by Q to it will cause a page fault. 
 
-In `load_page_by_spt()`, a new frame is allocated intentionally **before** looking up and copying the SPT entry. This ensures that when Q runs into a page fault for this frame while the eviction has not be done, it will immediately be stopped by the `frame_lock` in `frame_alloc()`, so there will be no race condition for Q's SPT entry.
+In `load_page_by_spt()`, a new frame is allocated **before** looking up and copying the SPT entry. This ensures that when Q runs into a page fault for this frame while the eviction has not be done, it will immediately be blocked by the `frame_lock` in `frame_alloc()`, so there will be no race condition for Q's SPT entry.
 
 >B7: Suppose a page fault in process P causes a page to be read from
 >the file system or swap.  How do you ensure that a second process Q
@@ -319,6 +319,6 @@ In the page fault handler, if the page is not present, it will first try to load
 >where your design falls along this continuum and why you chose to
 >design it this way.
 
-I chose to use multiple locks to allow for high parallelism. The specific synchronization design has been already explained in B5.
+In my first design, there was no SPT entry locks. But during the development process, I encountered countless synchronization issues, which forced me to start over multiple times, adding and then removing entry locks. Eventually, I achieved a correct implementation without entry locks, but to improve parallelism, I added entry locks again. 
 
-Apart from efficiency concerns, the choice of this complex design was also motivated by the desire to practice developing complex concurrent systems.
+Apart from improving parallelism, I chose to use multiple locks to wrap synchronization logic inside functions, making the code more modular. For example, the swap system is internally synchronized by `swap_lock`, so code using it does not need to worry about acquiring and releasing `swap_lock`, which makes implementation cleaner and less bug-prone. 
