@@ -1,4 +1,3 @@
-/* vm/frame.h */
 #ifndef VM_FRAME_H
 #define VM_FRAME_H
 
@@ -19,8 +18,6 @@ struct frame_entry
     bool pinned;               /* If true, do not evict */
   };
 
-struct lock frame_lock;        /* Lock for frame table */
-
 /* Initializes the global frame table (call in thread_init). */
 void frame_init (void);
 
@@ -35,4 +32,4 @@ void frame_free (kpage_t kpage);
 /* Pins/unpins a frame to prevent/allow eviction. */
 void frame_set_pinned (kpage_t kpage, bool pinned) ;
 
-#endif /* vm/frame.h */
+#endif /**< vm/frame.h */

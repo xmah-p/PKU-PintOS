@@ -411,8 +411,6 @@ is_valid_string (const char *str)
 static void 
 page_set_pinned (const void *buffer, unsigned size, bool pinned)
 {
-  #ifdef VM
-  lock_acquire (&frame_lock);
   for (unsigned i = 0; i < size; i += PGSIZE)
     {
       void *upage = pg_round_down (buffer + i);
@@ -422,7 +420,5 @@ page_set_pinned (const void *buffer, unsigned size, bool pinned)
   void *upage = pg_round_down (buffer + size - 1);
   void *kpage = pagedir_get_page (thread_current ()->pagedir, upage);
   frame_set_pinned (kpage, pinned);
-  lock_release (&frame_lock);
-  #endif
   return;
 }

@@ -5,16 +5,9 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
-#include "threads/synch.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
-static struct lock pagedir_lock;
-
-void pagedir_init (void) 
-{
-  lock_init (&pagedir_lock);
-}
 
 /** Creates a new page directory that has mappings for kernel
    virtual addresses, but none for user virtual addresses.
@@ -24,10 +17,8 @@ uint32_t *
 pagedir_create (void) 
 {
   uint32_t *pd = palloc_get_page (0);
-  lock_acquire (&pagedir_lock);
   if (pd != NULL)
     memcpy (pd, init_page_dir, PGSIZE);
-  lock_release (&pagedir_lock);
   return pd;
 }
 
@@ -36,14 +27,10 @@ pagedir_create (void)
 void
 pagedir_destroy (uint32_t *pd) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pde;
 
   if (pd == NULL)
-    {
-      lock_release (&pagedir_lock);
-      return;
-    }
+    return;
 
   ASSERT (pd != init_page_dir);
   for (pde = pd; pde < pd + pd_no (PHYS_BASE); pde++)
@@ -58,7 +45,6 @@ pagedir_destroy (uint32_t *pd)
         palloc_free_page (pt);
       }
   palloc_free_page (pd);
-  lock_release (&pagedir_lock);
 }
 
 /** Returns the address of the page table entry for virtual
@@ -112,7 +98,6 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
 bool
 pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte;
 
   ASSERT (pg_ofs (upage) == 0);
@@ -127,14 +112,10 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
-      lock_release (&pagedir_lock);
       return true;
     }
   else
-    {
-      lock_release (&pagedir_lock);
-      return false;
-    }
+    return false;
 }
 
 /** Looks up the physical address that corresponds to user virtual
@@ -144,23 +125,15 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 void *
 pagedir_get_page (uint32_t *pd, const void *uaddr) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte;
 
   ASSERT (is_user_vaddr (uaddr));
   
   pte = lookup_page (pd, uaddr, false);
   if (pte != NULL && (*pte & PTE_P) != 0)
-    {
-      void *res = pte_get_page (*pte) + pg_ofs (uaddr);
-      lock_release (&pagedir_lock);
-      return res;
-    }
+    return pte_get_page (*pte) + pg_ofs (uaddr);
   else
-    {
-      lock_release (&pagedir_lock);
-      return NULL;
-    }
+    return NULL;
 }
 
 /** Marks user virtual page UPAGE "not present" in page
@@ -170,7 +143,6 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
 void
 pagedir_clear_page (uint32_t *pd, void *upage) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte;
 
   ASSERT (pg_ofs (upage) == 0);
@@ -182,7 +154,6 @@ pagedir_clear_page (uint32_t *pd, void *upage)
       *pte &= ~PTE_P;
       invalidate_pagedir (pd);
     }
-  lock_release (&pagedir_lock);
 }
 
 /** Returns true if the PTE for virtual page VPAGE in PD is dirty,
@@ -192,9 +163,7 @@ pagedir_clear_page (uint32_t *pd, void *upage)
 bool
 pagedir_is_dirty (uint32_t *pd, const void *vpage) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte = lookup_page (pd, vpage, false);
-  lock_release (&pagedir_lock);
   return pte != NULL && (*pte & PTE_D) != 0;
 }
 
@@ -203,7 +172,6 @@ pagedir_is_dirty (uint32_t *pd, const void *vpage)
 void
 pagedir_set_dirty (uint32_t *pd, const void *vpage, bool dirty) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte = lookup_page (pd, vpage, false);
   if (pte != NULL) 
     {
@@ -215,7 +183,6 @@ pagedir_set_dirty (uint32_t *pd, const void *vpage, bool dirty)
           invalidate_pagedir (pd);
         }
     }
-  lock_release (&pagedir_lock);
 }
 
 /** Returns true if the PTE for virtual page VPAGE in PD has been
@@ -225,9 +192,7 @@ pagedir_set_dirty (uint32_t *pd, const void *vpage, bool dirty)
 bool
 pagedir_is_accessed (uint32_t *pd, const void *vpage) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte = lookup_page (pd, vpage, false);
-  lock_release (&pagedir_lock);
   return pte != NULL && (*pte & PTE_A) != 0;
 }
 
@@ -236,7 +201,6 @@ pagedir_is_accessed (uint32_t *pd, const void *vpage)
 void
 pagedir_set_accessed (uint32_t *pd, const void *vpage, bool accessed) 
 {
-  lock_acquire (&pagedir_lock);
   uint32_t *pte = lookup_page (pd, vpage, false);
   if (pte != NULL) 
     {
@@ -248,7 +212,6 @@ pagedir_set_accessed (uint32_t *pd, const void *vpage, bool accessed)
           invalidate_pagedir (pd);
         }
     }
-  lock_release (&pagedir_lock);
 }
 
 /** Loads page directory PD into the CPU's page directory base

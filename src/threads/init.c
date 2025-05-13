@@ -38,11 +38,9 @@
 #include "tests/threads/tests.h"
 #endif
 
-#ifdef VM
 #include "vm/swap.h"
 #include "vm/page.h"
 #include "vm/frame.h"
-#endif
 
 #ifdef FILESYS
 #include "devices/block.h"
@@ -141,11 +139,8 @@ pintos_init (void)
   filesys_init (format_filesys);
 #endif
 
-#ifdef VM
-  pagedir_init ();
   frame_init ();
   swap_init ();
-#endif
 
   printf ("Boot complete.\n");
   

@@ -12,15 +12,14 @@
 #include "vm/frame.h"
 #include "vm/swap.h"
 #include "filesys/filesys.h"
-#include <string.h>
 
 /** Each process has a Supplementart Page Table (SPT), which
    is a hash table mapping upage (VPN) to a sup_page_entry struct,
    stored in the thread's proc_info.
 
-   SPT is initialized via suppagedir_init () in start_process ()
+   SPT is initialized via spt_init () in start_process ()
    before loading the executable, and is destroyed via
-   suppagedir_destroy () in process_exit (). */
+   spt_destroy () in process_exit (). */
 
 
 
@@ -47,7 +46,7 @@ page_less (const struct hash_elem *a,
 
 /* Initialize supplemental page table hash. */
 void 
-suppagedir_init (struct hash *spt) 
+spt_init (struct hash *spt) 
 {
   hash_init (spt, page_hash, page_less, NULL);
 }
@@ -55,7 +54,7 @@ suppagedir_init (struct hash *spt)
 /* Create and insert a new supplemental page table entry for 
    file-backed page upage. 
    Should acquire and release spt_lock before and after! */
-bool suppagedir_install_bin_page(struct hash *spt, upage_t upage,
+bool spt_install_bin_page(struct hash *spt, upage_t upage,
                                  struct file *file, off_t ofs,
                                  size_t read_bytes, size_t zero_bytes,
                                  bool writable) 
@@ -78,7 +77,7 @@ bool suppagedir_install_bin_page(struct hash *spt, upage_t upage,
 /* Create and insert a new supplemental page table entry for
    zeroed page upage. 
    Should acquire and release spt_lock before and after! */
-bool suppagedir_install_zero_page (struct hash *spt, upage_t upage, 
+bool spt_install_zero_page (struct hash *spt, upage_t upage, 
                                    bool writable)
 {
   struct sup_page_entry *spe = malloc (sizeof *spe);
@@ -114,9 +113,7 @@ load_page_from_spt (void *fault_addr)
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
-  lock_acquire (&frame_lock);
   kpage_t kpage = frame_alloc (upage);
-  lock_release (&frame_lock);
 
   lock_acquire (spt_lock);
   struct sup_page_entry *spe_ptr = suppagedir_find (spt, upage);
@@ -135,16 +132,12 @@ load_page_from_spt (void *fault_addr)
 
       if (!pagedir_set_page (t->pagedir, upage, kpage, spe.writable))
         {
-          lock_acquire (&frame_lock);
           frame_free (kpage);
-          lock_release (&frame_lock);
           return false;
         }
       pagedir_set_dirty (t->pagedir, upage, true);
 
-      lock_acquire (&frame_lock);
       frame_set_pinned (kpage, false);
-      lock_release (&frame_lock);
       return true;
     }
 
@@ -166,9 +159,7 @@ load_page_from_spt (void *fault_addr)
 
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
 
-      lock_acquire (&frame_lock);
       frame_set_pinned (kpage, false);
-      lock_release (&frame_lock);
       return succ;
     }
 
@@ -184,9 +175,7 @@ load_page_from_spt (void *fault_addr)
       bool succ = pagedir_set_page (t->pagedir, upage, kpage, spe.writable);
       pagedir_set_dirty (t->pagedir, upage, true);
 
-      lock_acquire (&frame_lock);
       frame_set_pinned (kpage, false);
-      lock_release (&frame_lock);
       return succ;
     }
   
@@ -196,7 +185,7 @@ load_page_from_spt (void *fault_addr)
 /* Set the swap slot in the supplemental page table entry. 
    Should acquire and release spt_lock before and after! */
 void
-suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
+spt_set_page_swapped (struct hash *spt, upage_t upage,
                              block_sector_t swap_slot)
 {
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
@@ -209,23 +198,17 @@ suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
 
 static void destroy_spe (struct hash_elem *e, void *aux UNUSED);
 
-/* Destroy the supplemental page table, freeing entries and
-   swap slots. 
-   Should acquire and release BOTH frame_lock AND spt_lock 
-   before and after! */
+/* Destroy the supplemental page table, freeing supplemental page
+   table entries, swap slots, frame table entries and kernel pages.
+   Should acquire and release spt_lock before and after! */
 void 
-suppagedir_destroy (struct hash *spt) 
+spt_destroy (struct hash *spt) 
 {
   hash_destroy (spt, destroy_spe);
 }
 
 /* Destroy a supplemental page table entry. 
-   Called by hash_destroy () 
-   There four possible cases:
-    1. PAGE_BIN: do nothing, file is closed in process_exit ()
-    2. PAGE_ZERO: do nothing, page will be freed in process_exit ()
-    3. PAGE_SWAP: free swap slot if used, else 
-   */
+   Called by hash_destroy (). */
 static void
 destroy_spe (struct hash_elem *e, void *aux UNUSED)
 {
@@ -237,9 +220,9 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
 
   kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
   if (kpage) 
-  {
-    frame_free (kpage);
-  }
+    {
+      frame_free (kpage);
+    }
   pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   free (spe);
 }

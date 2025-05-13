@@ -16,6 +16,8 @@ static struct hash frame_map;    /* Hash table: key = kpage */
 static struct list frame_list;   /* List of all frames for eviction */
 static struct list_elem *clock_hand;  /* Clock pointer */
 
+static struct lock frame_lock;        /* Lock for frame table */
+
 /** The PintOS frame table is a global hash table mapping kpage (PPN)
    to a frame_entry struct.
 
@@ -53,31 +55,27 @@ frame_init (void)
 
 /* Choose a victim frame using clock algorithm (skip pinned). 
    The victim frame will be pinned.
-   Should acquire and release frame_lock before and after! */
+   Called by frame_alloc (). */
 static struct frame_entry *
 pick_victim_frame (void) 
 {
   if (clock_hand == NULL)
     clock_hand = list_begin (&frame_list);
 
-  /* Loop until we find a non-pinned, not-recently-used frame */
   while (true)
     {
       if (clock_hand == list_end (&frame_list))
           clock_hand = list_begin (&frame_list);
       struct frame_entry *fe = list_entry (clock_hand, 
                                            struct frame_entry, l_elem);
-      /* Skip pinned frames */
       if (!fe->pinned) 
         {
-          /* Check accessed bit: pick if not set */
           if (!pagedir_is_accessed (fe->owner->pagedir, fe->upage))
             {
               /* Pin and return */
               fe->pinned = true;
               return fe;
             }
-          /* Otherwise, give a second chance */
           pagedir_set_accessed (fe->owner->pagedir, fe->upage, false);
         }
       clock_hand = list_next(clock_hand);
@@ -91,6 +89,7 @@ kpage_t
 frame_alloc (upage_t upage) 
 {
   ASSERT (is_user_vaddr (upage));
+  lock_acquire (&frame_lock);
 
   block_sector_t slot = -1;
   kpage_t kpage = palloc_get_page (PAL_USER);
@@ -109,38 +108,42 @@ frame_alloc (upage_t upage)
       if (clock_hand == NULL)
           clock_hand = list_begin (&frame_list);
           
+      lock_release (&frame_lock);
       return kpage;
     }
 
-  /* No free page: evict one via clock algorithm */
+  /* palloc failed. Evict. */
+
+  /* Pick a victim and pin it using pick_victim_frame () */
   struct frame_entry *victim = pick_victim_frame ();
 
-  /* If dirty, write to swap (swap_write returns slot index) */
+  /* If dirty, write to swap and update SPT */
   bool dirty = pagedir_is_dirty (victim->owner->pagedir, victim->upage);
   /* Remove old mapping */
   pagedir_clear_page (victim->owner->pagedir, victim->upage);
+  /* Now any access to victim->kpage will fault */
 
   if (dirty) 
     {
       slot = swap_write (victim->kpage);
-      /* Update victim's supplemental page entry */
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
       struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
       lock_acquire (spt_lock);
-      suppagedir_set_page_swapped (spt, victim->upage, slot);
+      spt_set_page_swapped (spt, victim->upage, slot);
       lock_release (spt_lock);
     }
 
-  /* Reuse this frame for new page */
+  /* Update victim's owner and upage. */
   victim->owner = thread_current ();
   victim->upage = upage;
   victim->pinned = true;
   kpage = victim->kpage;
   
+  lock_release (&frame_lock);
   return kpage;
 }
 
-/* Lookup frame_entry by its kernel address (kpage).
+/* Lookup frame_entry by its kernel address.
    Should acquire and release frame_lock before and after! */
 static struct frame_entry *
 frame_find (kpage_t kpage) 
@@ -155,11 +158,11 @@ frame_find (kpage_t kpage)
   return fe;
 }
 
-/* Free a frame and its entry (called when process exits). 
-   Not synchroized! */
+/* Free a frame and its entry (called when process exits). */
 void 
 frame_free (kpage_t kpage) 
 {
+  lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
 
   if (fe == NULL)
@@ -173,15 +176,18 @@ frame_free (kpage_t kpage)
   hash_delete (&frame_map, &fe->h_elem);
   palloc_free_page (kpage);
   free (fe);
+  lock_release (&frame_lock);
 }
 
 /* Pin/unpin a frame by its kernel address. */
 void frame_set_pinned (kpage_t kpage, bool pinned) 
 {
+  lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
   if (fe == NULL)
     {
       PANIC ("frame_set_pinned: frame not found");
     }
   fe->pinned = pinned;
+  lock_release (&frame_lock);
 }

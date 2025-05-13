@@ -1,4 +1,3 @@
-/* vm/page.h */
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
@@ -29,20 +28,19 @@ struct sup_page_entry
     bool writable;
   };
 
-void suppagedir_init (struct hash *spt);
+void spt_init (struct hash *spt);
 
-bool suppagedir_install_bin_page (struct hash *spt, upage_t upage,
+bool spt_install_bin_page (struct hash *spt, upage_t upage,
                                   struct file *file, off_t ofs,
                                   size_t read_bytes, size_t zero_bytes,
                                   bool writable);
 
-bool suppagedir_install_zero_page (struct hash *spt, upage_t upage,
+bool spt_install_zero_page (struct hash *spt, upage_t upage,
                                    bool writable);
 
-void suppagedir_destroy (struct hash *spt);
-void suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
+void spt_destroy (struct hash *spt);
+void spt_set_page_swapped (struct hash *spt, upage_t upage,
                                  block_sector_t swap_slot);
 bool load_page_from_spt (void *fault_addr);
 
-#endif 
-/* vm/page.h */
+#endif /**< vm/page.h */

@@ -28,11 +28,9 @@ struct proc_info
     struct lock lock;              /**< Lock for proc_info. */
     int ref_count;                 /**< Reference count for process. */
 
-#ifdef VM
     /* Owned by vm/page.c. */
-    struct hash sup_page_table;         /**< Supplemental page table. */
-    struct lock spt_lock;               /**< Lock for the sup_page_table. */
-#endif
+    struct hash sup_page_table;    /**< Supplemental page table. */
+    struct lock spt_lock;          /**< Lock for the sup_page_table. */
   };
 
 /* pid-tid mapping */

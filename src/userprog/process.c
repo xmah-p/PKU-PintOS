@@ -9,7 +9,6 @@
 #include <hash.h>
 
 #include "userprog/gdt.h"
-#include "userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
@@ -23,7 +22,6 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"   
 #include "vm/page.h"
-#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (struct proc_info *proc_info, 
@@ -79,7 +77,7 @@ init_proc_info (struct proc_info *proc_info, char **argv)
   sema_init (&proc_info->wait_sema, 0);
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
-  suppagedir_init (&proc_info->sup_page_table);
+  spt_init (&proc_info->sup_page_table);
   lock_init (&proc_info->spt_lock);
   proc_info->ref_count = 1;
 }
@@ -347,12 +345,9 @@ process_exit (int status)
       free_proc_info_refcnt (child_proc_info);
     }
 
-  lock_acquire (&frame_lock);
   lock_acquire (&proc_info->spt_lock);
-  suppagedir_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
+  spt_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
   lock_release (&proc_info->spt_lock);
-  // reset_frame_system ();
-  lock_release (&frame_lock);
   
   lock_release (&proc_info->lock);
 
@@ -574,15 +569,8 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
   lock_release (&filesys_lock);
   return false;
 }
-
+
 /** load() helpers. */
-
-static bool install_page (void *upage, void *kpage, bool writable) UNUSED;
-
-static bool eager_load_page (size_t page_read_bytes, 
-                             size_t page_zero_bytes,
-                             struct file *file, off_t ofs, 
-                             uint8_t *upage, bool writable) UNUSED;
 
 static bool lazy_load_page (size_t page_read_bytes, 
                             size_t page_zero_bytes,
@@ -664,13 +652,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      #ifndef VM
-      if (!eager_load_page(page_read_bytes, page_zero_bytes,
-                              file, ofs, upage, writable))
-      #else
+
       if (!lazy_load_page (page_read_bytes, page_zero_bytes,
                               file, ofs, upage, writable))
-      #endif
         return false;
 
       /* Advance. */
@@ -691,29 +675,13 @@ setup_stack (void **esp, char **argv)
   uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
   int argc = 0;
   
-  #ifndef VM
-  bool success = false;
-  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage == NULL) 
-    {
-      return false; 
-    }
-    
-  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-  if (!success) 
-    {
-      palloc_free_page (kpage);
-      return false; 
-    }
-  #else
   struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
   lock_acquire (spt_lock);
-  bool install_success = suppagedir_install_zero_page (
+  bool install_success = spt_install_zero_page (
         &thread_current ()->proc_info->sup_page_table, upage, true);
   lock_release (spt_lock);
   if (!install_success)
     return false;
-  #endif
 
   *esp = PHYS_BASE;
 
@@ -750,55 +718,6 @@ setup_stack (void **esp, char **argv)
   return true;
 }
 
-/** Adds a mapping from user virtual address UPAGE to kernel
-   virtual address KPAGE to the page table.
-   If WRITABLE is true, the user process may modify the page;
-   otherwise, it is read-only.
-   UPAGE must not already be mapped.
-   KPAGE should probably be a page obtained from the user pool
-   with palloc_get_page().
-   Returns true on success, false if UPAGE is already mapped or
-   if memory allocation fails. */
-static bool
-install_page (void *upage, void *kpage, bool writable)
-{
-  struct thread *t = thread_current ();
-
-  /* Verify that there's not already a page at that virtual
-     address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
-}
-
-/* Actually allocate a page from user pool and load content from file
-   into it. */
-static bool
-eager_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
-                 off_t ofs, uint8_t *upage, bool writable)
-{
-  /* Get a page of memory. */
-  uint8_t *kpage = palloc_get_page (PAL_USER);
-  if (kpage == NULL) 
-    return false;
-  
-  /* Load this page. */
-  file_seek (file, ofs);
-  if (file_read (file, kpage, read_bytes) != (int) read_bytes)
-    {
-      palloc_free_page (kpage);
-      return false; 
-    }
-  memset (kpage + read_bytes, 0, zero_bytes);
-
-  /* Add the page to the process's address space. */
-  if (!install_page (upage, kpage, writable)) 
-    {
-      palloc_free_page (kpage);
-      return false; 
-    }
-  return true;
-}
-
 /* Lazy load page. */
 static bool
 lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
@@ -807,7 +726,7 @@ lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file,
   struct hash *spt = &thread_current ()->proc_info->sup_page_table;
   struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
   lock_acquire (spt_lock);
-  bool success = suppagedir_install_bin_page (spt, upage, file, ofs,
+  bool success = spt_install_bin_page (spt, upage, file, ofs,
                               read_bytes, zero_bytes, writable);
   lock_release (spt_lock);
   return success;
