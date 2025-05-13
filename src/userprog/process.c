@@ -253,7 +253,8 @@ process_wait (pid_t child_pid)
 
   /* Check if child_pid is a valid child. */
   lock_acquire (&proc_info->lock);
-  for (e = list_begin (&proc_info->child_list); e != list_end (&proc_info->child_list);
+  for (e = list_begin (&proc_info->child_list); 
+       e != list_end (&proc_info->child_list);
        e = list_next (e))
     {
       child_proc_info = list_entry (e, struct proc_info, child_elem);

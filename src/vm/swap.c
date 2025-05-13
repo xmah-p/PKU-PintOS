@@ -15,8 +15,9 @@
    swap_init () are called in threads/init.c.
 
    swap_write () is called in vm/frame.c when a page is evicted from
-   memory to swap. It returns the slot index of the swap device where the page
-   was written, which is then stored in the page's supplemental page table entry.
+   memory to swap. It returns the slot index of the swap device where 
+   the page was written, which is then stored in the page's supplemental 
+   page table entry.
 
    swap_read () is called on page fault for swap-backed pages.
 

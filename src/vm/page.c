@@ -237,10 +237,12 @@ destroy_spte (struct hash_elem *e, void *aux UNUSED)
   lock_release (spte_lock);
 
   /* Free swap slot if used */
-  if (spte_copy.type == PAGE_SWAP && spte_copy.swap_slot != (block_sector_t) -1) 
+  if (spte_copy.type == PAGE_SWAP && 
+      spte_copy.swap_slot != (block_sector_t) -1) 
     swap_free (spte_copy.swap_slot);
 
-  kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spte_copy.upage);
+  kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, 
+                                    spte_copy.upage);
   pagedir_clear_page (thread_current ()->pagedir, spte->upage);
   if (kpage) 
     {
