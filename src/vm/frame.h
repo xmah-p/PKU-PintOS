@@ -19,11 +19,11 @@ struct frame_entry
     bool pinned;               /* If true, do not evict */
   };
 
-/* Initializes the global frame table (call in thread_init). */
+/* Initializes the global frame table (called in thread_init). */
 void frame_init (void);
 
 /* Allocates a user frame for user page 'upage', evicting if needed.
-   Called in load_page_from_spt () */
+   Called in load_page_by_spt () */
 kpage_t frame_alloc (upage_t upage);
 
 /* Frees a frame when a process exits (unmaps and releases). 
@@ -31,6 +31,6 @@ kpage_t frame_alloc (upage_t upage);
 void frame_free (kpage_t kpage);
 
 /* Pins/unpins a frame to prevent/allow eviction. */
-void frame_set_pinned (kpage_t kpage, bool pinned) ;
+void frame_set_pinned (kpage_t kpage, bool pinned);
 
 #endif /**< vm/frame.h */

@@ -107,13 +107,16 @@ suppagedir_find (struct hash *spt, upage_t upage)
 
 /* On page fault: load page by spt. */
 bool 
-load_page_from_spt (void *fault_addr) 
+load_page_by_spt (void *fault_addr) 
 {
   upage_t upage = pg_round_down (fault_addr);
   struct thread *t = thread_current ();
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
+  /* Allocate frame before lookup SPTE, this makes sure that if the
+     current page fault is due to an in progress eviction, there will
+     not be a race condition for the SPTE. */
   kpage_t kpage = frame_alloc (upage);
 
   lock_acquire (spt_lock);
@@ -226,17 +229,18 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
 
   struct lock *spte_lock = &spe->spte_lock;
   lock_acquire (spte_lock);
+  struct spt_entry spe_copy = *spe;
+  lock_release (spte_lock);
 
   /* Free swap slot if used */
-  if (spe->type == PAGE_SWAP && spe->swap_slot != (block_sector_t) -1) 
-    swap_free (spe->swap_slot);
+  if (spe_copy.type == PAGE_SWAP && spe_copy.swap_slot != (block_sector_t) -1) 
+    swap_free (spe_copy.swap_slot);
 
-  kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spe->upage);
+  kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spe_copy.upage);
   if (kpage) 
     {
       frame_free (kpage);
     }
   pagedir_clear_page (thread_current ()->pagedir, spe->upage);
-  lock_release (spte_lock);
   free (spe);
 }

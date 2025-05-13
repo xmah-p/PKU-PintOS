@@ -408,6 +408,8 @@ is_valid_string (const char *str)
   return true;
 }
 
+/* Called in syscall_read () and syscall_write () to pin the 
+   frames in user buffer. */
 static void 
 page_set_pinned (const void *buffer, unsigned size, bool pinned)
 {

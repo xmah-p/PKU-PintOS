@@ -175,7 +175,7 @@ page_fault (struct intr_frame *f)
   /* Not present: load page from supplemental page table. */
   if (not_present)
     {
-      if (load_page_from_spt (fault_addr)) 
+      if (load_page_by_spt (fault_addr)) 
         return;
       if (!user)
         {

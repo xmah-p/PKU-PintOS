@@ -719,7 +719,8 @@ setup_stack (void **esp, char **argv)
   return true;
 }
 
-/* Lazy load page. */
+/* Only create and insert entries in the supplemental page table, 
+   does not actually read file content into pages. */
 static bool
 lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
                 off_t ofs, uint8_t *upage, bool writable)
