@@ -46,7 +46,7 @@ bool spt_install_zero_page (struct hash *spt, upage_t upage,
 
 /* Destroy the supplemental page table, freeing supplemental page
    table entries, swap slots, frame table entries and kernel pages. */
-void spt_destroy (struct hash *spt);
+void spt_destroy (struct hash *spt, struct lock *spt_lock);
 
 /* Set swap slot in the supplemental page table entry. */
 void spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,

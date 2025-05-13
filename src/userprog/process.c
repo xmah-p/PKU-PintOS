@@ -346,9 +346,7 @@ process_exit (int status)
       free_proc_info_refcnt (child_proc_info);
     }
 
-  lock_acquire (&proc_info->spt_lock);
-  spt_destroy (&proc_info->sup_page_table); /* Destroy SPT. */
-  lock_release (&proc_info->spt_lock);
+  spt_destroy (&proc_info->sup_page_table, &proc_info->spt_lock);
   
   lock_release (&proc_info->lock);
 

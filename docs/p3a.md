@@ -36,6 +36,8 @@ struct frame_entry
     bool pinned;               /* If true, do not evict */
   };
 
+struct lock frame_lock;        /* Lock for frame table */
+
 /* Initializes the global frame table (called in thread_init). */
 void frame_init (void);
 
@@ -88,7 +90,7 @@ bool spt_install_zero_page (struct hash *spt, upage_t upage,
 
 /* Destroy the supplemental page table, freeing supplemental page
    table entries, swap slots, frame table entries and kernel pages. */
-void spt_destroy (struct hash *spt);
+void spt_destroy (struct hash *spt, struct lock *spt_lock);
 
 /* Set swap slot in the supplemental page table entry. */
 void spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
@@ -102,7 +104,6 @@ bool load_page_by_spt (void *fault_addr);
 static struct hash frame_map;    /* Hash table: key = kpage */
 static struct list frame_list;   /* List of all frames for eviction */
 static struct list_elem *clock_hand;  /* Clock pointer */
-static struct lock frame_lock;        /* Lock for frame table */
 
 /* Hash functions for frame table. */
 static unsigned frame_hash (const struct hash_elem *e, void *aux UNUSED);
@@ -271,12 +272,15 @@ Deadlock happens when **NESTED** locks are acquired in **INCONSISTENT ORDER**s. 
     - In function `load`, `filesys_lock` is released before lazy segment loading (which does not touch the filesystem), and re-acquired after. This prevents the nesting of `filesys_lock` and `spt_lock` (which is acquired in `lazy_load_page()`).
     - In `load_page_by_spt()`, although all five locks are used, none of them are explicitly nested. This is achieved mainly by carefully lock releasing and **making a local copy of the shared SPT entry**: 
       - After a frame is allocated by `frame_alloc()`, the SPT table lock `spt_lock` is used to lookup the SPT entry. Once the entry is found, `spt_lock` is released immediately and the entry lock `spte_lock` is acquired. Then, a copy of the entry is made and `spte_lock` is released. Any subsequent reads to the entry will be done using the copy, and only writes will require acquiring and releasing the SPT entry lock.
-- There are only three instances of lock nesting in my whole Lab3a code: 
-    - `spt_lock` acquired inside critical section of `frame_lock`
-    - `swap_lock` inside that of `frame_lock`
-    - `spte_lock` inside that of `spt_lock`
-    - Each of these involves a different pair of locks, so there is even no need to worry about lock ordering.
+- There are four instances of lock nesting in my whole Lab 3a code: 
+    - `spt_lock` and `spte_lock` acquired independently inside critical section of `frame_lock`, in `frame_alloc()`.
+    - `swap_lock` inside that of `frame_lock`, in `frame_alloc()`.
+    - `spte_lock` inside that of `spt_lock`, which in turn inside that of `frame_lock`, in `spt_destroy()`. 
+    - By ensuring consistent lock acquisition orders, my code is deadlock-free.
+        - `frame_lock -> spt_lock -> spte_lock`
+        - `frame_lock -> swap_lock`
 
+I ran `page-parallel` test for more than 35 times, and my submission code passed all of them. 
 
 >B6: A page fault in process P can cause another process Q's frame
 >to be evicted.  How do you ensure that Q cannot access or modify

@@ -16,8 +16,6 @@ static struct hash frame_map;    /* Hash table: key = kpage */
 static struct list frame_list;   /* List of all frames for eviction */
 static struct list_elem *clock_hand;  /* Clock pointer */
 
-static struct lock frame_lock;        /* Lock for frame table */
-
 /** The PintOS frame table is a global hash table mapping kpage (PPN)
    to a frame_entry struct.
 
@@ -160,7 +158,6 @@ frame_find (kpage_t kpage)
 void 
 frame_free (kpage_t kpage) 
 {
-  lock_acquire (&frame_lock);
   struct frame_entry *fe = frame_find (kpage);
 
   if (fe == NULL)
@@ -174,7 +171,6 @@ frame_free (kpage_t kpage)
   hash_delete (&frame_map, &fe->h_elem);
   palloc_free_page (kpage);
   free (fe);
-  lock_release (&frame_lock);
 }
 
 /* Pin/unpin a frame by its kernel address. */

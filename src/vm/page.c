@@ -215,9 +215,13 @@ static void destroy_spe (struct hash_elem *e, void *aux UNUSED);
    table entries, swap slots, frame table entries and kernel pages.
    Should acquire and release spt_lock before and after! */
 void 
-spt_destroy (struct hash *spt) 
+spt_destroy (struct hash *spt, struct lock *spt_lock)
 {
+  lock_acquire (&frame_lock);
+  lock_acquire (spt_lock);
   hash_destroy (spt, destroy_spe);
+  lock_release (spt_lock);
+  lock_release (&frame_lock);
 }
 
 /* Destroy a supplemental page table entry. 
@@ -237,10 +241,10 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
     swap_free (spe_copy.swap_slot);
 
   kpage_t kpage = pagedir_get_page (thread_current ()->pagedir, spe_copy.upage);
+  pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   if (kpage) 
     {
       frame_free (kpage);
     }
-  pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   free (spe);
 }
