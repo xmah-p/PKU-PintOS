@@ -2,6 +2,7 @@
 #include "vm/page.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "threads/malloc.h"
 #include "threads/palloc.h"
@@ -29,7 +30,7 @@ page_hash (const struct hash_elem *e, void *aux UNUSED)
 {
   const struct sup_page_entry *p = hash_entry 
                                       (e, struct sup_page_entry, h_elem);
-  return p->upage;
+  return (unsigned) p->upage;
 }
 
 /* Compare by VPN (upage) */

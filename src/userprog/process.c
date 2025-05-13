@@ -10,6 +10,7 @@
 
 #include "userprog/gdt.h"
 #include "userprog/tss.h"
+#include "userprog/pagedir.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"

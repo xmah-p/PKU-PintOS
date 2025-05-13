@@ -30,7 +30,7 @@ frame_hash (const struct hash_elem *e, void *aux UNUSED)
 {
   const struct frame_entry *fe = hash_entry 
                                   (e, struct frame_entry, h_elem);
-  return fe->kpage;
+  return (unsigned) fe->kpage;
 }
 
 /* Compare by PPN (kpage) */
