@@ -30,16 +30,9 @@ struct frame_entry *frame_alloc (upage_t upage);
 
 /* Frees a frame when a process exits (unmaps and releases). 
    Called in destroy_spe () */
-void frame_free (struct frame_entry *fe);
+void frame_free (kpage_t kpage);
 
 /* Pins/unpins a frame to prevent/allow eviction. */
 void frame_set_pinned (kpage_t kpage, bool pinned) ;
-
-void 
-print_acquire (const char *name);
-void 
-print_release (const char *name);
-
-void reset_frame_system (void);
 
 #endif /* vm/frame.h */

@@ -30,7 +30,7 @@ page_hash (const struct hash_elem *e, void *aux UNUSED)
 {
   const struct sup_page_entry *p = hash_entry 
                                       (e, struct sup_page_entry, h_elem);
-  return hash_bytes (&p->upage, sizeof p->upage);
+  return p->upage;
 }
 
 /* Compare by VPN (upage) */
@@ -116,26 +116,21 @@ load_page_from_spt (void *fault_addr)
   struct hash *spt = &t->proc_info->sup_page_table;
   struct lock *spt_lock = &t->proc_info->spt_lock;
 
-  print_acquire("spt_lock");
+  lock_acquire (&frame_lock);
+  struct frame_entry *fe = frame_alloc (upage);
+  kpage_t kpage = fe->kpage;
+  lock_release (&frame_lock);
+
   lock_acquire (spt_lock);
   struct sup_page_entry *spe_ptr = suppagedir_find (spt, upage);
   if (!spe_ptr) 
     {
       lock_release (spt_lock);
-      print_release("spt_lock");
       return false;
     }
 
   struct sup_page_entry spe = *spe_ptr;
   lock_release (spt_lock);
-  print_release("spt_lock");
-
-  print_acquire("frame_lock");
-  lock_acquire (&frame_lock);
-  struct frame_entry *fe = frame_alloc (upage);
-  kpage_t kpage = fe->kpage;
-  lock_release (&frame_lock);
-  print_release("frame_lock");
 
   if (spe.type == PAGE_ZERO) 
     {
@@ -161,7 +156,11 @@ load_page_from_spt (void *fault_addr)
 
   /* Backed by file */
   else if (spe.type == PAGE_BIN) 
-    {
+    {      
+      lock_acquire (&frame_lock);
+      frame_set_pinned (kpage, true);
+      lock_release (&frame_lock);
+
       lock_acquire (&filesys_lock);
       file_seek (spe.file, spe.ofs);
       size_t r = file_read (spe.file, kpage, spe.read_bytes);
@@ -191,6 +190,10 @@ load_page_from_spt (void *fault_addr)
   /* Swapped out */
   else if (spe.type == PAGE_SWAP) 
     {
+      lock_acquire (&frame_lock);
+      frame_set_pinned (kpage, true);
+      lock_release (&frame_lock);
+
       swap_read (spe.swap_slot, kpage);
 
       lock_acquire (spt_lock);
@@ -213,14 +216,17 @@ load_page_from_spt (void *fault_addr)
 /* Set the swap slot in the supplemental page table entry. 
    Should acquire and release spt_lock before and after! */
 void
-suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
+suppagedir_set_page_evicted (struct hash *spt, upage_t upage,
                              block_sector_t swap_slot)
 {
   struct sup_page_entry *spe = suppagedir_find (spt, upage);
   if (spe) 
   {
-    spe->type = PAGE_SWAP;
-    spe->swap_slot = swap_slot;
+    if (swap_slot != (block_sector_t) -1) 
+      {
+        spe->type = PAGE_SWAP;
+        spe->swap_slot = swap_slot;
+      }
     spe->fe = NULL; /* No frame */
   }
 }
@@ -255,7 +261,7 @@ destroy_spe (struct hash_elem *e, void *aux UNUSED)
 
   if (spe->fe) 
   {
-    frame_free (spe->fe);
+    frame_free (spe->fe->kpage);
   }
   pagedir_clear_page (thread_current ()->pagedir, spe->upage);
   free (spe);

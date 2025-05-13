@@ -41,7 +41,7 @@ bool suppagedir_install_zero_page (struct hash *spt, upage_t upage,
                                    bool writable);
 
 void suppagedir_destroy (struct hash *spt);
-void suppagedir_set_page_swapped (struct hash *spt, upage_t upage,
+void suppagedir_set_page_evicted (struct hash *spt, upage_t upage,
                                  block_sector_t swap_slot);
 bool load_page_from_spt (void *fault_addr);
 
