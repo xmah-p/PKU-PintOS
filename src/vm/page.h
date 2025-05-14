@@ -9,10 +9,10 @@
 #include "threads/synch.h"
 #include "frame.h"
 
-/* PAGE_BIN: Backed by a file (e.g., executable)
+/* PAGE_FILE: Backed by a file (e.g., executable)
    PAGE_ZERO: Zeroed page (e.g., stack, heap)
    PAGE_SWAP: Swapped out page (e.g., evicted from memory) */
-enum page_type { PAGE_BIN, PAGE_ZERO, PAGE_SWAP };
+enum page_type { PAGE_FILE, PAGE_ZERO, PAGE_SWAP };
 
 /* Supplemental page table entry */
 struct spt_entry 
@@ -20,7 +20,7 @@ struct spt_entry
     struct hash_elem h_elem;
     upage_t upage;               /* User virtual page (key) */
     enum page_type type;
-    struct file *file;        /* Backing file (for PAGE_BIN) */
+    struct file *file;        /* Backing file (for PAGE_FILE) */
     off_t ofs;                /* Offset in file */
     size_t read_bytes;        /* Bytes to read */
     size_t zero_bytes;        /* Bytes to zero */

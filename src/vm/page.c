@@ -61,7 +61,7 @@ bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
   if (!spte)
     return false;
   spte->upage = upage;
-  spte->type = PAGE_BIN;
+  spte->type = PAGE_FILE;
   spte->file = file;
   spte->ofs = ofs;
   spte->read_bytes = read_bytes;
@@ -146,7 +146,7 @@ load_page_by_spt (void *fault_addr)
         frame_set_pinned (kpage, false);
         return true;
     
-      case PAGE_BIN:
+      case PAGE_FILE:
         lock_acquire (&filesys_lock);
         file_seek (spte.file, spte.ofs);
         size_t r = file_read (spte.file, kpage, spte.read_bytes);
