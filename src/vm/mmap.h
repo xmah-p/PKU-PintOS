@@ -22,13 +22,19 @@ struct mmap_entry
   };
 
 /* Create and insert a new mmap entry for the given file. */
-bool mmap_insert (struct list *mmap_list, mapid_t mapid,
+bool mmap_create (struct list *mmap_list, mapid_t mapid,
                    struct file *file, size_t length, upage_t uaddr);
 
-/* Destroy the mmap list, freeing mmap entries. */
-void mmap_destroy (struct list *mmap_list);
+/* Look up mmap entry by mapid (NULL if not found). */
+struct mmap_entry *mmap_lookup (struct list *mmap_list, mapid_t mapid);
+
+/* Write back each mmap entry and destroy the mmap list. */
+void mmap_write_back_and_destroy (struct list *mmap_list);
 
 /* Remove a mmap entry from the list. */
 void mmap_delete (struct list *mmap_list, struct mmap_entry *entry);
+
+/* Write back mmap entry to file. */
+void write_back_mmap (struct mmap_entry *entry);
 
 #endif /**< vm/mmap.h */

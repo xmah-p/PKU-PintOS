@@ -76,7 +76,7 @@ pick_victim_frame (void)
             }
           pagedir_set_accessed (fe->owner->pagedir, fe->upage, false);
         }
-      clock_hand = list_next(clock_hand);
+      clock_hand = list_next (clock_hand);
     }
   NOT_REACHED ();
 }

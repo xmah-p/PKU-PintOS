@@ -12,6 +12,7 @@
 #include "userprog/process.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "vm/vm_region.h"
 #include "filesys/filesys.h"
 
 /** Each process has a Supplementart Page Table (SPT), which
@@ -99,8 +100,8 @@ bool spt_install_zero_page (struct hash *spt, struct lock *spt_lock,
 }
 
 /* Lookup SPT entry by user page (NULL if not found). */
-static struct spt_entry *
-suppagedir_find (struct hash *spt, upage_t upage) 
+struct spt_entry *
+suppagedir_lookup (struct hash *spt, upage_t upage) 
 {
   struct spt_entry spte = { .upage = upage };
   struct hash_elem *he = hash_find (spt, &spte.h_elem);
@@ -122,7 +123,7 @@ load_page_by_spt (void *fault_addr)
   kpage_t kpage = frame_alloc (upage);
 
   lock_acquire (spt_lock);
-  struct spt_entry *spte_ptr = suppagedir_find (spt, upage);
+  struct spt_entry *spte_ptr = suppagedir_lookup (spt, upage);
   lock_release (spt_lock);
   if (!spte_ptr) return false;
 
@@ -199,7 +200,7 @@ spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
                       upage_t upage, block_sector_t swap_slot)
 {
   lock_acquire (spt_lock);
-  struct spt_entry *spte = suppagedir_find (spt, upage);
+  struct spt_entry *spte = suppagedir_lookup (spt, upage);
   lock_release (spt_lock);
   if (spte) 
   {
@@ -251,4 +252,49 @@ destroy_spte (struct hash_elem *e, void *aux UNUSED)
       frame_free (kpage);
     }
   free (spte);
+}
+
+
+/* Only create and insert entries in the supplemental page table, 
+   does not actually read file content into pages. */
+static bool
+lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
+                off_t ofs, upage_t upage, bool writable)
+{
+  struct hash *spt = &thread_current ()->proc_info->sup_page_table;
+  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
+  bool success = spt_install_bin_page (spt, spt_lock, upage, file, ofs,
+                                       read_bytes, zero_bytes, writable);
+  return success;
+}
+
+bool
+load_segment (struct file *file, off_t ofs, upage_t upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+{
+  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (ofs % PGSIZE == 0);
+
+  vm_region_install (&thread_current ()->proc_info->vm_region_list,
+                     REGION_EXEC, upage, read_bytes + zero_bytes);
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      if (!lazy_load_page (page_read_bytes, page_zero_bytes,
+                              file, ofs, upage, writable))
+        return false;
+
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+      ofs += page_read_bytes;    /* Cannot use file_tell ()! */
+    }
+  return true;
 }

@@ -52,8 +52,14 @@ void spt_destroy (struct hash *spt, struct lock *spt_lock);
 void spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
                            upage_t upage, block_sector_t swap_slot);
 
+struct spt_entry *suppagedir_lookup (struct hash *spt, upage_t upage);
+
 /* Called on page fault. Load page according to supplemental page table
    entry. */
 bool load_page_by_spt (void *fault_addr);
+
+/* Load file content into pages. */
+bool load_segment (struct file *file, off_t ofs, upage_t upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
 #endif /**< vm/page.h */

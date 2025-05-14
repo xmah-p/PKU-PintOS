@@ -23,6 +23,8 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"   
 #include "vm/page.h"
+#include "vm/vm_region.h"
+#include "vm/mmap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (struct proc_info *proc_info, 
@@ -38,7 +40,6 @@ free_proc_info (struct proc_info *proc_info)
     palloc_free_page (proc_info->argv[0]);
     palloc_free_page (proc_info->argv);
   }
-
   free (proc_info);
 }
 
@@ -78,9 +79,14 @@ init_proc_info (struct proc_info *proc_info, char **argv)
   sema_init (&proc_info->wait_sema, 0);
   for (int i = 0; i < MAX_FD; i++)
     proc_info->fd_table[i] = NULL;
+
   spt_init (&proc_info->sup_page_table);
   lock_init (&proc_info->spt_lock);
   proc_info->esp = NULL;
+  list_init (&proc_info->mmap_list);
+  proc_info->mmap_next_mapid = 1;
+  list_init (&proc_info->vm_region_list);
+
   proc_info->ref_count = 1;
 }
 
@@ -348,6 +354,8 @@ process_exit (int status)
       free_proc_info_refcnt (child_proc_info);
     }
 
+  mmap_write_back_and_destroy (&proc_info->mmap_list);
+
   spt_destroy (&proc_info->sup_page_table, &proc_info->spt_lock);
   
   lock_release (&proc_info->lock);
@@ -439,9 +447,6 @@ struct Elf32_Phdr
 
 static bool setup_stack (void **esp, char **argv);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
-static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
-                          uint32_t read_bytes, uint32_t zero_bytes,
-                          bool writable);
 
 /** Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -540,7 +545,7 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
               lock_release (&filesys_lock);
-              if (!load_segment (file, file_page, (void *) mem_page,
+              if (!load_segment (file, file_page, (upage_t) mem_page,
                                  read_bytes, zero_bytes, writable))
                 {
                   file_close (file);
@@ -572,11 +577,6 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
 }
 
 /** load() helpers. */
-
-static bool lazy_load_page (size_t page_read_bytes, 
-                            size_t page_zero_bytes,
-                            struct file *file, off_t ofs, 
-                            uint8_t *upage, bool writable);
 
 /** Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -620,50 +620,6 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
     return false;
 
   /* It's okay. */
-  return true;
-}
-
-/** Loads a segment starting at offset OFS in FILE at address
-   UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
-   memory are initialized, as follows:
-
-        - READ_BYTES bytes at UPAGE must be read from FILE
-          starting at offset OFS.
-
-        - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
-   The pages initialized by this function must be writable by the
-   user process if WRITABLE is true, read-only otherwise.
-
-   Return true if successful, false if a memory allocation error
-   or disk read error occurs. */
-static bool
-load_segment (struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
-{
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
-
-  while (read_bytes > 0 || zero_bytes > 0) 
-    {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-
-      if (!lazy_load_page (page_read_bytes, page_zero_bytes,
-                              file, ofs, upage, writable))
-        return false;
-
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
-      ofs += page_read_bytes;    /* Cannot use file_tell ()! */
-    }
   return true;
 }
 
@@ -717,18 +673,8 @@ setup_stack (void **esp, char **argv)
   *(void **) *esp = 0;
 
   proc_info->esp = (uaddr_t) *esp;
+  vm_region_install (&proc_info->vm_region_list, REGION_ZERO, 
+                     (upage_t) PHYS_BASE - STACK_SIZE, STACK_SIZE);
   return true;
 }
 
-/* Only create and insert entries in the supplemental page table, 
-   does not actually read file content into pages. */
-static bool
-lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
-                off_t ofs, uint8_t *upage, bool writable)
-{
-  struct hash *spt = &thread_current ()->proc_info->sup_page_table;
-  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
-  bool success = spt_install_bin_page (spt, spt_lock, upage, file, ofs,
-                                       read_bytes, zero_bytes, writable);
-  return success;
-}

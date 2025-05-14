@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <list.h>
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
 
 /* Create and insert a new VM region entry for executable region. */
 bool 
@@ -43,6 +44,9 @@ vm_region_available (struct list *vm_region_list,
   struct list_elem *e;
   struct vm_region *region;
 
+  if (!is_user_vaddr (start) || !is_user_vaddr (start + length))
+    return false;
+
   for (e = list_begin (vm_region_list); e != list_end (vm_region_list); 
        e = list_next (e))
     {
@@ -57,9 +61,21 @@ vm_region_available (struct list *vm_region_list,
 
 /* Remove a VM region entry from the list. */
 void
-vm_region_uninstall (struct list *vm_region_list, 
-                         struct vm_region *region)
+vm_region_uninstall (struct list *vm_region_list, upage_t start)
 {
-  list_remove (&region->l_elem);
-  free (region);
+  struct list_elem *e;
+  struct vm_region *region;
+
+  for (e = list_begin (vm_region_list); e != list_end (vm_region_list); 
+       e = list_next (e))
+    {
+      region = list_entry (e, struct vm_region, l_elem);
+      if (region->start == start)
+        {
+          list_remove (&region->l_elem);
+          free (region);
+          return;
+        }
+    }
+  PANIC ("vm_region_uninstall: region not found");
 }

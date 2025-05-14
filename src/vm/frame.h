@@ -3,7 +3,8 @@
 
 #include <stdbool.h>
 #include "threads/thread.h"
-#include "lib/kernel/hash.h"
+#include <hash.h>
+#include "threads/synch.h"
 
 typedef void * kpage_t; /* Kernel page (physical address) */
 typedef void * upage_t; /* User page (virtual address) */

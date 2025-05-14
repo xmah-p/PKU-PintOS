@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <round.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
@@ -12,6 +13,9 @@
 #include "devices/input.h"
 #include "lib/string.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/mmap.h"
+#include "vm/vm_region.h"
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
@@ -31,7 +35,6 @@ static bool is_valid_string (const char *str);
 static struct file *get_file (int fd);
 
 static void page_set_pinned (const void *buffer, unsigned size, bool pinned);
-
 
 /* System call implementations. */
 
@@ -237,6 +240,46 @@ syscall_close (int fd)
   return;
 }
 
+static mapid_t
+syscall_mmap (int fd, void *addr) 
+{  
+  struct thread *cur = thread_current ();
+  struct proc_info *proc_info = cur->proc_info;
+
+  if (fd <= STDOUT_FILENO || fd >= MAX_FD ||
+      addr == NULL || pg_ofs (addr) != 0)
+      syscall_exit (-1);
+
+  lock_acquire (&filesys_lock);
+  struct file *file = file_reopen (get_file (fd));
+  size_t length = file_length (file);
+  lock_release (&filesys_lock);
+
+  if (length == 0 || 
+      !vm_region_available (&proc_info->vm_region_list, addr, length))
+      syscall_exit (-1);
+  
+  mapid_t mapid = proc_info->mmap_next_mapid++;
+  mmap_create (&proc_info->mmap_list, mapid, file, length, addr);
+  
+  size_t read_bytes = length;
+  size_t zero_bytes = (ROUND_UP (length, PGSIZE) - length);
+
+  load_segment (file, 0, addr, read_bytes, zero_bytes, true);
+
+  return mapid;
+}
+
+static void
+syscall_munmap (mapid_t mapid) 
+{
+  struct thread *cur = thread_current ();
+  struct proc_info *proc_info = cur->proc_info;
+
+  write_back_mmap (mmap_lookup (&proc_info->mmap_list, mapid));
+  mmap_delete (&proc_info->mmap_list, mapid);
+}
+
 
 void
 syscall_init (void) 
@@ -257,7 +300,9 @@ static int syscall_argc[] = {
   [SYS_WRITE] = 3,
   [SYS_SEEK] = 2,
   [SYS_TELL] = 1,
-  [SYS_CLOSE] = 1
+  [SYS_CLOSE] = 1,
+  [SYS_MMAP] = 2,
+  [SYS_MUNMAP] = 1
 };
 
 static void
@@ -319,6 +364,12 @@ syscall_handler (struct intr_frame *f)
         break;
       case SYS_CLOSE: 
         syscall_close (esp[1]);
+        break;
+      case SYS_MMAP:
+        f->eax = syscall_mmap (esp[1], (void *) esp[2]);
+        break;
+      case SYS_MUNMAP:
+        syscall_munmap ((mapid_t) esp[1]);
         break;
       default:
         syscall_exit (-1);
@@ -425,3 +476,4 @@ page_set_pinned (const void *buffer, unsigned size, bool pinned)
   frame_set_pinned (kpage, pinned);
   return;
 }
+

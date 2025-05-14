@@ -33,7 +33,6 @@ bool vm_region_available (struct list *vm_region_list,
                             upage_t start, size_t length);
 
 /* Remove a VM region entry from the list. */
-void vm_region_uninstall (struct list *vm_region_list, 
-                            struct vm_region *region);
+void vm_region_uninstall (struct list *vm_region_list, upage_t start);
 
 #endif /**< vm/vm_region.h */
