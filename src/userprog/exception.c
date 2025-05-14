@@ -145,7 +145,7 @@ extend_stack (void *fault_addr, bool user, void *esp)
   uaddr_t stack_top = PHYS_BASE;
   uaddr_t stack_bottom = stack_top - STACK_SIZE;
   if (!user)
-    esp = proc_info->esp;
+    esp = thread_current ()->esp;
 
   /* Stack region is:
       - [esp, stack_top)

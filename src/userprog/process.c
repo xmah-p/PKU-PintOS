@@ -82,7 +82,6 @@ init_proc_info (struct proc_info *proc_info, char **argv)
 
   spt_init (&proc_info->sup_page_table);
   lock_init (&proc_info->spt_lock);
-  proc_info->esp = NULL;
   list_init (&proc_info->mmap_list);
   proc_info->mmap_next_mapid = 1;
   list_init (&proc_info->vm_region_list);
@@ -670,7 +669,6 @@ setup_stack (void **esp, char **argv)
   *esp -= sizeof (void *);
   *(void **) *esp = 0;
 
-  proc_info->esp = (uaddr_t) *esp;
   vm_region_install (&proc_info->vm_region_list, REGION_ZERO, 
                      (upage_t) PHYS_BASE - STACK_SIZE, STACK_SIZE);
   return true;

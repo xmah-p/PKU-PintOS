@@ -35,7 +35,6 @@ struct proc_info
     /* VM */
     struct hash sup_page_table;    /**< Supplemental page table. */
     struct lock spt_lock;          /**< Lock for the sup_page_table. */
-    uaddr_t esp;                   /**< Stack pointer. */
     struct list mmap_list;         /**< List of mmap entries. */
     mapid_t mmap_next_mapid;       /**< Next mapid. */
     struct list vm_region_list;    /**< List of VM regions. */

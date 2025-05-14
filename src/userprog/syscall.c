@@ -315,7 +315,7 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   int *esp = (int *) f->esp;
-  thread_current ()->proc_info->esp = (uaddr_t) esp;
+  thread_current ()->esp = (uaddr_t) esp;
 
   if (!is_valid_nbyte_ptr((byte_t *) esp, sizeof (int), false))
       syscall_exit (-1);

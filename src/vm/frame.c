@@ -89,7 +89,6 @@ frame_alloc (upage_t upage)
   ASSERT (is_user_vaddr (upage));
   lock_acquire (&frame_lock);
 
-  block_sector_t slot = -1;
   kpage_t kpage = palloc_get_page (PAL_USER);
   if (kpage != NULL) 
     {
@@ -128,10 +127,9 @@ frame_alloc (upage_t upage)
 
   if (dirty) 
     {
-      slot = swap_write (victim->kpage);
       struct hash *spt = &victim->owner->proc_info->sup_page_table;
       struct lock *spt_lock = &victim->owner->proc_info->spt_lock;
-      spt_set_page_swapped (spt, spt_lock, victim->upage, slot);
+      spt_swap_out_page (spt, spt_lock, victim->upage, victim->kpage);
     }
 
   /* Update victim's owner and upage. */

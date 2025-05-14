@@ -58,7 +58,7 @@ static bool
 spt_install_file_page (struct hash *spt, struct lock *spt_lock,
                            upage_t upage, struct file *file, off_t ofs,
                            size_t read_bytes, size_t zero_bytes,
-                           bool writable)
+                           bool writable, bool write_back)
 {
   struct spt_entry *spte = malloc (sizeof *spte);
   if (!spte)
@@ -71,6 +71,7 @@ spt_install_file_page (struct hash *spt, struct lock *spt_lock,
   spte->zero_bytes = zero_bytes;
   spte->writable = writable;
   spte->swap_slot = (block_sector_t) -1;
+  spte->write_back = write_back;
   lock_init (&spte->spte_lock);
   lock_acquire (spt_lock);
   hash_insert (spt, &spte->h_elem);
@@ -95,7 +96,9 @@ spt_install_file_pages (struct file *file, off_t ofs, upage_t upage,
   if (!vm_region_install (&thread_current ()->proc_info->vm_region_list,
                      type, upage, read_bytes + zero_bytes))
     return false;
-    
+  
+  bool write_back = (type == REGION_MMAP);
+
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -106,7 +109,7 @@ spt_install_file_pages (struct file *file, off_t ofs, upage_t upage,
 
       if (!spt_install_file_page (spt, spt_lock, upage, file, ofs,
                                   page_read_bytes, page_zero_bytes,
-                                  writable))
+                                  writable, write_back))
         return false;
 
       /* Advance. */
@@ -236,23 +239,39 @@ load_page_by_spt (void *fault_addr)
   NOT_REACHED ();
 }
 
-/* Set the swap slot in the supplemental page table entry. 
-   Synchronized.  */
+/* Swap out a dirty page to swap space (PAGE_SWAP) or its backing file
+   (PAGE_FILE with write_back == true). */
 void
-spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
-                      upage_t upage, block_sector_t swap_slot)
+spt_swap_out_page (struct hash *spt, struct lock *spt_lock,
+                      upage_t upage, kpage_t kpage)
 {
   lock_acquire (spt_lock);
   struct spt_entry *spte = suppagedir_lookup (spt, upage);
   lock_release (spt_lock);
-  if (spte) 
-  {
-    struct lock *spte_lock = &spte->spte_lock;
-    lock_acquire (spte_lock);
-    spte->type = PAGE_SWAP;
-    spte->swap_slot = swap_slot;
-    lock_release (spte_lock);
-  }
+  if (!spte) PANIC ("spt_swap_out_page: spte not found!"); 
+
+  struct lock *spte_lock = &spte->spte_lock;
+  lock_acquire (spte_lock);
+  struct spt_entry spte_copy = *spte;
+  lock_release (spte_lock);
+
+  if (spte_copy.type == PAGE_FILE && spte_copy.write_back) 
+    {
+      /* Write back to backing file */
+      lock_acquire (&filesys_lock);
+      file_seek (spte_copy.file, spte_copy.ofs);
+      file_write (spte_copy.file, upage, spte_copy.read_bytes);
+      lock_release (&filesys_lock);
+    }
+  else
+    {
+      /* Write to swap */
+      block_sector_t swap_slot = swap_write (kpage);
+      lock_acquire (spte_lock);
+      spte->type = PAGE_SWAP;
+      spte->swap_slot = swap_slot;
+      lock_release (spte_lock);
+    }
 }
 
 static void destroy_spte (struct hash_elem *e, void *aux UNUSED);

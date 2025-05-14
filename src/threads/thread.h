@@ -17,6 +17,7 @@ enum thread_status
 /** Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
+typedef void * uaddr_t; /**< User virtual address type. */
 #define TID_ERROR ((tid_t) -1)          /**< Error value for tid_t. */
 
 /** Thread priorities. */
@@ -102,6 +103,7 @@ struct thread
     uint32_t *pagedir;                  /**< Page directory. */
     struct proc_info *proc_info ;       /**< Process info. */
 #endif
+    uaddr_t esp;                        /**< Stack pointer. */
 
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */
