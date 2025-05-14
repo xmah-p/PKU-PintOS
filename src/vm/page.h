@@ -10,7 +10,7 @@
 #include "frame.h"
 #include "vm/vm_region.h"
 
-/* PAGE_FILE: Backed by a file (e.g., executable)
+/* PAGE_FILE: Backed by a file (e.g., executable, mmap)
    PAGE_ZERO: Zeroed page (e.g., stack, heap)
    PAGE_SWAP: Swapped out page (e.g., evicted from memory) */
 enum page_type { PAGE_FILE, PAGE_ZERO, PAGE_SWAP };
@@ -19,7 +19,7 @@ enum page_type { PAGE_FILE, PAGE_ZERO, PAGE_SWAP };
 struct spt_entry 
   {
     struct hash_elem h_elem;
-    upage_t upage;               /* User virtual page (key) */
+    upage_t upage;            /* User virtual page (key) */
     enum page_type type;
     struct file *file;        /* Backing file (for PAGE_FILE) */
     off_t ofs;                /* Offset in file */
@@ -33,12 +33,11 @@ struct spt_entry
 /* Initialize supplemental page table (called in process creation). */
 void spt_init (struct hash *spt);
 
-/* Create and insert a new supplemental page table entry for file-backed 
-   page upage. */
-bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
-                           upage_t upage, struct file *file, off_t ofs,
-                           size_t read_bytes, size_t zero_bytes,
-                           bool writable);
+/* Create and insert new supplemental page table entries for multiple
+   contiguous file-backed pages. */
+bool spt_install_file_pages (struct file *file, off_t ofs, upage_t upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
+              enum region_type type);
 
 /* Create and insert a new supplemental page table entry for zeroed page
    upage. */
@@ -53,16 +52,12 @@ void spt_destroy (struct hash *spt, struct lock *spt_lock);
 void spt_set_page_swapped (struct hash *spt, struct lock *spt_lock,
                            upage_t upage, block_sector_t swap_slot);
 
+/* Look up supplemental page table entry by its user virtual page (upage).
+   Returns NULL if not found. */
 struct spt_entry *suppagedir_lookup (struct hash *spt, upage_t upage);
 
 /* Called on page fault. Load page according to supplemental page table
    entry. */
 bool load_page_by_spt (void *fault_addr);
-
-/* Load file content into pages. */
-bool load_segment (struct file *file, off_t ofs, upage_t upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
-              enum region_type type);
-
 
 #endif /**< vm/page.h */

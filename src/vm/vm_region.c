@@ -5,7 +5,7 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 
-/* Create and insert a new VM region entry for executable region. */
+/* Create and insert a new VM region entry into the list. */
 bool 
 vm_region_install (struct list *vm_region_list, 
                    enum region_type type, upage_t start, size_t length)
@@ -20,7 +20,7 @@ vm_region_install (struct list *vm_region_list,
   return true;
 }
 
-/* Destroy the VM region list, freeing VM region entries. */
+/* Destroy the VM region list, freeing all VM region entries. */
 void
 vm_region_destroy (struct list *vm_region_list)
 {
@@ -30,6 +30,8 @@ vm_region_destroy (struct list *vm_region_list)
   for (e = list_begin (vm_region_list); e != list_end (vm_region_list);)
     {
       region = list_entry (e, struct vm_region, l_elem);
+      /* All mmap regions should be already uninstalled */
+      ASSERT (region->type == REGION_EXEC || region->type == REGION_ZERO);
       e = list_remove (e);
       free (region);
     }

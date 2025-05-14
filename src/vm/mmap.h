@@ -16,7 +16,6 @@ struct mmap_entry
     struct list_elem l_elem;       /* List element */
     mapid_t mapid;                     /* Mapping ID */
     struct file *file;             /* File being mapped */
-    size_t length;                 /* Length of the mapping */
     upage_t uaddr;                 /* User virtual address */
     size_t page_cnt;             /* Number of pages mapped */
   };

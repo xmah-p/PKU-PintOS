@@ -21,7 +21,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
-#include "threads/synch.h"   
+#include "threads/synch.h"
 #include "vm/page.h"
 #include "vm/vm_region.h"
 #include "vm/mmap.h"
@@ -131,9 +131,7 @@ process_execute (const char *commandline)
   /* Parse cmdline into argv. */ 
   argv = palloc_get_page (0);
   if (argv == NULL)
-    {
       return PID_ERROR;
-    }
 
   cmdline_copy = palloc_get_page (0);
   if (cmdline_copy == NULL)
@@ -355,7 +353,6 @@ process_exit (int status)
     }
 
   mmap_write_back_and_destroy (&proc_info->mmap_list);
-
   spt_destroy (&proc_info->sup_page_table, &proc_info->spt_lock);
   vm_region_destroy (&proc_info->vm_region_list);
   
@@ -546,9 +543,9 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
               lock_release (&filesys_lock);
-              if (!load_segment (file, file_page, (upage_t) mem_page,
-                                 read_bytes, zero_bytes, writable, 
-                                 REGION_EXEC))
+              if (!spt_install_file_pages (file, file_page, 
+                                (upage_t) mem_page, read_bytes, zero_bytes, 
+                                writable, REGION_EXEC))
                 {
                   file_close (file);
                   return false;
@@ -638,8 +635,7 @@ setup_stack (void **esp, char **argv)
   upage_t upage = ((upage_t) PHYS_BASE) - PGSIZE;
   int argc = 0;
 
-  bool install_success = spt_install_zero_page (spt, spt_lock, upage, true);
-  if (!install_success)
+  if (!spt_install_zero_page (spt, spt_lock, upage, true))
     return false;
 
   *esp = PHYS_BASE;

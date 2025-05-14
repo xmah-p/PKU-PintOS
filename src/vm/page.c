@@ -51,9 +51,11 @@ spt_init (struct hash *spt)
   hash_init (spt, page_hash, page_less, NULL);
 }
 
-/* Create and insert a new supplemental page table entry for 
-   file-backed page upage. */
-bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
+/* Create and insert a single supplemental page table entry for 
+   file-backed page upage. 
+   This is a helper function for spt_install_file_pages (). */
+static bool 
+spt_install_file_page (struct hash *spt, struct lock *spt_lock,
                            upage_t upage, struct file *file, off_t ofs,
                            size_t read_bytes, size_t zero_bytes,
                            bool writable)
@@ -75,6 +77,47 @@ bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
   lock_release (spt_lock);
   return true;
 }
+
+/* Create and insert new supplemental page table entries for multiple
+   contiguous file-backed pages. */
+bool
+spt_install_file_pages (struct file *file, off_t ofs, upage_t upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
+              enum region_type type)
+{
+  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (ofs % PGSIZE == 0);
+
+  struct hash *spt = &thread_current ()->proc_info->sup_page_table;
+  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
+
+  if (!vm_region_install (&thread_current ()->proc_info->vm_region_list,
+                     type, upage, read_bytes + zero_bytes))
+    return false;
+    
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      if (!spt_install_file_page (spt, spt_lock, upage, file, ofs,
+                                  page_read_bytes, page_zero_bytes,
+                                  writable))
+        return false;
+
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+      ofs += page_read_bytes;    /* Cannot use file_tell ()! */
+    }
+  return true;
+}
+
 
 /* Create and insert a new supplemental page table entry for
    zeroed page upage. */
@@ -252,50 +295,4 @@ destroy_spte (struct hash_elem *e, void *aux UNUSED)
       frame_free (kpage);
     }
   free (spte);
-}
-
-
-/* Only create and insert entries in the supplemental page table, 
-   does not actually read file content into pages. */
-static bool
-lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file, 
-                off_t ofs, upage_t upage, bool writable)
-{
-  struct hash *spt = &thread_current ()->proc_info->sup_page_table;
-  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
-  bool success = spt_install_bin_page (spt, spt_lock, upage, file, ofs,
-                                       read_bytes, zero_bytes, writable);
-  return success;
-}
-
-bool
-load_segment (struct file *file, off_t ofs, upage_t upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
-              enum region_type type)
-{
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
-
-  vm_region_install (&thread_current ()->proc_info->vm_region_list,
-                     type, upage, read_bytes + zero_bytes);
-  while (read_bytes > 0 || zero_bytes > 0) 
-    {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-      if (!lazy_load_page (page_read_bytes, page_zero_bytes,
-                              file, ofs, upage, writable))
-        return false;
-
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
-      ofs += page_read_bytes;    /* Cannot use file_tell ()! */
-    }
-  return true;
 }

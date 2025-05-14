@@ -20,7 +20,6 @@ mmap_create (struct list *mmap_list, mapid_t mapid,
     return false;
   entry->mapid = mapid;
   entry->file = file;
-  entry->length = length;
   entry->uaddr = uaddr;
   entry->page_cnt = length / PGSIZE + (length % PGSIZE != 0);
   list_push_back (mmap_list, &entry->l_elem);
@@ -83,10 +82,11 @@ write_back_mmap (struct mmap_entry *entry)
   ASSERT (entry != NULL);
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
+  struct hash *spt = &proc_info->sup_page_table;
   struct lock *spt_lock = &proc_info->spt_lock;
+  struct list *vm_region_list = &proc_info->vm_region_list;
 
   struct file *file = entry->file;
-
   size_t page_cnt = entry->page_cnt;
   upage_t uaddr = entry->uaddr;
 
@@ -94,8 +94,7 @@ write_back_mmap (struct mmap_entry *entry)
     {
       upage_t file_page = uaddr + i * PGSIZE;
       lock_acquire (spt_lock);
-      struct spt_entry *spte = suppagedir_lookup (&proc_info->sup_page_table, 
-                                               file_page);
+      struct spt_entry *spte = suppagedir_lookup (spt, file_page);
       lock_release (spt_lock);
       if (spte == NULL)
         PANIC ("write_back_mmap: spte is NULL");
@@ -115,5 +114,5 @@ write_back_mmap (struct mmap_entry *entry)
   lock_acquire (&filesys_lock);
   file_close (entry->file);
   lock_release (&filesys_lock);
-  vm_region_uninstall (&proc_info->vm_region_list, entry->uaddr);
+  vm_region_uninstall (vm_region_list, entry->uaddr);
 }

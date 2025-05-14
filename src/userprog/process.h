@@ -7,7 +7,6 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h"
-#include "vm/vm_region.h"
 #include "vm/mmap.h"
 
 #define MAX_FD 128 /**< Maximum number of file descriptors. */

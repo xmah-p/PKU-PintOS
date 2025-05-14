@@ -95,6 +95,11 @@ frame_alloc (upage_t upage)
     {
       /* Create a new frame entry */
       struct frame_entry *fe = malloc (sizeof *fe);
+      if (fe == NULL)
+        {
+          lock_release (&frame_lock);
+          PANIC ("frame_alloc: malloc failed");
+        }
       fe->kpage = kpage;
       fe->owner = thread_current ();
       fe->upage = upage;

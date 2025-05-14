@@ -248,8 +248,11 @@ syscall_mmap (int fd, void *addr)
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
 
-  if (fd <= STDOUT_FILENO || fd >= MAX_FD ||
-      addr == NULL || pg_ofs (addr) != 0)
+  /* Check if arguments are valid */
+  if (fd <= STDOUT_FILENO || 
+      fd >= MAX_FD ||
+      addr == NULL || 
+      pg_ofs (addr) != 0)
       return MMAP_FAILED;
 
   lock_acquire (&filesys_lock);
@@ -257,17 +260,22 @@ syscall_mmap (int fd, void *addr)
   size_t length = file_length (file);
   lock_release (&filesys_lock);
 
+  /* Check if the memory region to be mapped is valid */
   if (length == 0 || 
       !vm_region_available (&proc_info->vm_region_list, addr, length))
       return MMAP_FAILED;
   
+  /* Create a mmap entry */
   mapid_t mapid = proc_info->mmap_next_mapid++;
-  mmap_create (&proc_info->mmap_list, mapid, file, length, addr);
+  if (!mmap_create (&proc_info->mmap_list, mapid, file, length, addr))
+    return MMAP_FAILED;
   
+  /* Install pages in the supplemental page table */
   size_t read_bytes = length;
   size_t zero_bytes = (ROUND_UP (length, PGSIZE) - length);
-
-  load_segment (file, 0, addr, read_bytes, zero_bytes, true, REGION_MMAP);
+  if (!spt_install_file_pages (file, 0, addr, read_bytes, zero_bytes, 
+                               true, REGION_MMAP))
+    return MMAP_FAILED;
 
   return mapid;
 }
@@ -278,7 +286,6 @@ syscall_munmap (mapid_t mapid)
   struct list *mmap_list = &thread_current ()->proc_info->mmap_list;
   mmap_write_back_and_delete (mmap_list, mapid);
 }
-
 
 void
 syscall_init (void) 

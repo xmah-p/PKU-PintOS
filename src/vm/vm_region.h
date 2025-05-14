@@ -20,11 +20,11 @@ struct vm_region
     size_t length;                 /* Length of the region */
   };
 
-/* Create and insert a new VM region entry for executable region. */
+/* Create and insert a new VM region entry into the list. */
 bool vm_region_install (struct list *vm_region_list, 
                         enum region_type type, upage_t start, size_t length);
 
-/* Destroy the VM region list, freeing VM region entries. */
+/* Destroy the VM region list, freeing all VM region entries. */
 void vm_region_destroy (struct list *vm_region_list);
 
 /* Check if the given region is not overlapping with any existing region
