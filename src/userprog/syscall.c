@@ -265,7 +265,7 @@ syscall_mmap (int fd, void *addr)
   size_t read_bytes = length;
   size_t zero_bytes = (ROUND_UP (length, PGSIZE) - length);
 
-  load_segment (file, 0, addr, read_bytes, zero_bytes, true);
+  load_segment (file, 0, addr, read_bytes, zero_bytes, true, REGION_MMAP);
 
   return mapid;
 }
@@ -273,11 +273,8 @@ syscall_mmap (int fd, void *addr)
 static void
 syscall_munmap (mapid_t mapid) 
 {
-  struct thread *cur = thread_current ();
-  struct proc_info *proc_info = cur->proc_info;
-
-  write_back_mmap (mmap_lookup (&proc_info->mmap_list, mapid));
-  mmap_delete (&proc_info->mmap_list, mapid);
+  struct list *mmap_list = &thread_current ()->proc_info->mmap_list;
+  mmap_write_back_and_delete (mmap_list, mapid);
 }
 
 

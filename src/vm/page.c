@@ -270,14 +270,15 @@ lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file,
 
 bool
 load_segment (struct file *file, off_t ofs, upage_t upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
+              enum region_type type)
 {
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
   vm_region_install (&thread_current ()->proc_info->vm_region_list,
-                     REGION_EXEC, upage, read_bytes + zero_bytes);
+                     type, upage, read_bytes + zero_bytes);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.

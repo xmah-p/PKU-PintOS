@@ -8,6 +8,7 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "frame.h"
+#include "vm/vm_region.h"
 
 /* PAGE_FILE: Backed by a file (e.g., executable)
    PAGE_ZERO: Zeroed page (e.g., stack, heap)
@@ -60,6 +61,8 @@ bool load_page_by_spt (void *fault_addr);
 
 /* Load file content into pages. */
 bool load_segment (struct file *file, off_t ofs, upage_t upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable);
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable,
+              enum region_type type);
+
 
 #endif /**< vm/page.h */

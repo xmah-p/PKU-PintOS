@@ -357,6 +357,7 @@ process_exit (int status)
   mmap_write_back_and_destroy (&proc_info->mmap_list);
 
   spt_destroy (&proc_info->sup_page_table, &proc_info->spt_lock);
+  vm_region_destroy (&proc_info->vm_region_list);
   
   lock_release (&proc_info->lock);
 
@@ -546,7 +547,8 @@ load (struct proc_info *proc_info, void (**eip) (void), void **esp)
                 }
               lock_release (&filesys_lock);
               if (!load_segment (file, file_page, (upage_t) mem_page,
-                                 read_bytes, zero_bytes, writable))
+                                 read_bytes, zero_bytes, writable, 
+                                 REGION_EXEC))
                 {
                   file_close (file);
                   return false;

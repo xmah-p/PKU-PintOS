@@ -464,6 +464,8 @@ rm build/tests/filesys/base/syn-write.output; make build/tests/filesys/base/syn-
 rm build/tests/vm/page-linear.output; make build/tests/vm/page-linear.result            # vm
 rm build/tests/vm/page-parallel.output; make build/tests/vm/page-parallel.result            # vm
 
+rm build/tests/vm/mmap-read.output; make build/tests/vm/mmap-read.result            # vm
+
 code src/userprog/build/tests/userprog/syn-read.output
 
 make clean; 
@@ -762,3 +764,16 @@ c
 struct thread *t = thread_current();
 t->user_esp = f->esp;  // f 是 syscall_handler 的 intr_frame* 参数
 之后即使发生 page fault 时 intr_frame->esp 不可靠，也可以从 thread_current()->user_esp 获取当时的用户栈指针。
+
+- Test robustness of "mmap" system call.
+   1/ 1 tests/vm/mmap-bad-fd
+   1/ 1 tests/vm/mmap-inherit
+** 0/ 1 tests/vm/mmap-null
+   1/ 1 tests/vm/mmap-zero
+
+** 0/ 2 tests/vm/mmap-misalign
+
+** 0/ 2 tests/vm/mmap-over-code
+** 0/ 2 tests/vm/mmap-over-data
+** 0/ 2 tests/vm/mmap-over-stk
+** 0/ 2 tests/vm/mmap-overlap

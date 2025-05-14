@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "userprog/process.h"
+#include "userprog/pagedir.h"
 #include "vm/page.h"
 #include "filesys/filesys.h"
 
@@ -26,8 +27,8 @@ mmap_create (struct list *mmap_list, mapid_t mapid,
   return true;
 }
 
-/* Lookup mmap entry by mapid (NULL if not found). */
-struct mmap_entry *
+/* Lookup mmap entry by mapid (panic if not found). */
+static struct mmap_entry *
 mmap_lookup (struct list *mmap_list, mapid_t mapid)
 {
   struct list_elem *e;
@@ -40,8 +41,11 @@ mmap_lookup (struct list *mmap_list, mapid_t mapid)
       if (entry->mapid == mapid)
         return entry;
     }
-  return NULL;
+  PANIC ("mmap_lookup: entry not found");
+  NOT_REACHED ();
 }
+
+static void write_back_mmap (struct mmap_entry *entry);
 
 /* Write back each mmap entry and destroy the mmap list. */
 void
@@ -59,27 +63,30 @@ mmap_write_back_and_destroy (struct list *mmap_list)
     }
 }
 
-/* Remove a mmap entry from the list. */
+/* Write back a mmap entry to file and delete it. 
+   The file is closed after writing back, and the corresponding vm region
+   will be uninstalled. */
 void
-mmap_delete (struct list *mmap_list, struct mmap_entry *entry)
+mmap_write_back_and_delete (struct list *mmap_list, mapid_t mapid)
 {
+  struct mmap_entry *entry = mmap_lookup (mmap_list, mapid);
+  write_back_mmap (entry);
   list_remove (&entry->l_elem);
-  file_close (entry->file);
   free (entry);
 }
 
-
-/* Write back mmap entry to file. */
-void
+/* Write back a mmap entry to file. The file is closed after writing back,
+   and the corresponding vm region will be uninstalled. */
+static void
 write_back_mmap (struct mmap_entry *entry) 
 {
   ASSERT (entry != NULL);
   struct thread *cur = thread_current ();
   struct proc_info *proc_info = cur->proc_info;
-  struct file *file = entry->file;
   struct lock *spt_lock = &proc_info->spt_lock;
 
-  size_t length = entry->length;
+  struct file *file = entry->file;
+
   size_t page_cnt = entry->page_cnt;
   upage_t uaddr = entry->uaddr;
 
@@ -94,19 +101,19 @@ write_back_mmap (struct mmap_entry *entry)
         PANIC ("write_back_mmap: spte is NULL");
       
       lock_acquire (&spte->spte_lock);
-      struct spt_entry spte_copy = *spte;
+      size_t read_bytes = spte->read_bytes;
       lock_release (&spte->spte_lock);
 
       if (pagedir_is_dirty (cur->pagedir, file_page))
         {
           lock_acquire (&filesys_lock);
           file_seek (file, i * PGSIZE);
-          file_write (file, file_page, spte_copy.read_bytes);
+          file_write (file, file_page, read_bytes);
           lock_release (&filesys_lock);
         }
     }
   lock_acquire (&filesys_lock);
-  file_close (file);
+  file_close (entry->file);
   lock_release (&filesys_lock);
   vm_region_uninstall (&proc_info->vm_region_list, entry->uaddr);
 }
