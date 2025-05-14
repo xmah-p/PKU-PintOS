@@ -20,6 +20,8 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 
+#define MMAP_FAILED ((mapid_t) -1)
+
 typedef unsigned char byte_t;
 
 static void syscall_handler (struct intr_frame *);
@@ -248,7 +250,7 @@ syscall_mmap (int fd, void *addr)
 
   if (fd <= STDOUT_FILENO || fd >= MAX_FD ||
       addr == NULL || pg_ofs (addr) != 0)
-      syscall_exit (-1);
+      return MMAP_FAILED;
 
   lock_acquire (&filesys_lock);
   struct file *file = file_reopen (get_file (fd));
@@ -257,7 +259,7 @@ syscall_mmap (int fd, void *addr)
 
   if (length == 0 || 
       !vm_region_available (&proc_info->vm_region_list, addr, length))
-      syscall_exit (-1);
+      return MMAP_FAILED;
   
   mapid_t mapid = proc_info->mmap_next_mapid++;
   mmap_create (&proc_info->mmap_list, mapid, file, length, addr);

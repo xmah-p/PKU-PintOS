@@ -530,26 +530,8 @@ i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.l
 dd if=/dev/zero of=tests/vm/zeros bs=1024 count=6
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-overlap -a mmap-overlap -p tests/vm/zeros -a zeros --swap-size=4 -- -q  -f run mmap-overlap < /dev/null 2> tests/vm/mmap-overlap.errors > tests/vm/mmap-overlap.output
 perl -I../.. ../../tests/vm/mmap-overlap.ck tests/vm/mmap-overlap tests/vm/mmap-overlap.result
-[31mFAIL tests/vm/mmap-overlap
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-overlap) begin
-  (mmap-overlap) open "zeros" once
-  (mmap-overlap) mmap "zeros"
-  (mmap-overlap) open "zeros" again
-  (mmap-overlap) try to mmap "zeros" again
-  (mmap-overlap) end
-Differences in `diff -u' format:
-  (mmap-overlap) begin
-  (mmap-overlap) open "zeros" once
-  (mmap-overlap) mmap "zeros"
-  (mmap-overlap) open "zeros" again
-  (mmap-overlap) try to mmap "zeros" again
-- (mmap-overlap) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-twice.c -o tests/vm/mmap-twice.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-twice.d
+[32mpass tests/vm/mmap-overlap
+[0mi386-elf-gcc -c ../../tests/vm/mmap-twice.c -o tests/vm/mmap-twice.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-twice.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-twice.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-twice
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-twice -a mmap-twice -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-twice < /dev/null 2> tests/vm/mmap-twice.errors > tests/vm/mmap-twice.output
 perl -I../.. ../../tests/vm/mmap-twice.ck tests/vm/mmap-twice tests/vm/mmap-twice.result
@@ -592,98 +574,28 @@ perl -I../.. ../../tests/vm/mmap-inherit.ck tests/vm/mmap-inherit tests/vm/mmap-
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-misalign.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-misalign
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-misalign -a mmap-misalign -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-misalign < /dev/null 2> tests/vm/mmap-misalign.errors > tests/vm/mmap-misalign.output
 perl -I../.. ../../tests/vm/mmap-misalign.ck tests/vm/mmap-misalign tests/vm/mmap-misalign.result
-[31mFAIL tests/vm/mmap-misalign
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-misalign) begin
-  (mmap-misalign) open "sample.txt"
-  (mmap-misalign) try to mmap at misaligned address
-  (mmap-misalign) end
-Differences in `diff -u' format:
-  (mmap-misalign) begin
-  (mmap-misalign) open "sample.txt"
-  (mmap-misalign) try to mmap at misaligned address
-- (mmap-misalign) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-null.c -o tests/vm/mmap-null.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-null.d
+[32mpass tests/vm/mmap-misalign
+[0mi386-elf-gcc -c ../../tests/vm/mmap-null.c -o tests/vm/mmap-null.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-null.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-null.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-null
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-null -a mmap-null -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-null < /dev/null 2> tests/vm/mmap-null.errors > tests/vm/mmap-null.output
 perl -I../.. ../../tests/vm/mmap-null.ck tests/vm/mmap-null tests/vm/mmap-null.result
-[31mFAIL tests/vm/mmap-null
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-null) begin
-  (mmap-null) open "sample.txt"
-  (mmap-null) try to mmap at address 0
-  (mmap-null) end
-Differences in `diff -u' format:
-  (mmap-null) begin
-  (mmap-null) open "sample.txt"
-  (mmap-null) try to mmap at address 0
-- (mmap-null) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-over-code.c -o tests/vm/mmap-over-code.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-code.d
+[32mpass tests/vm/mmap-null
+[0mi386-elf-gcc -c ../../tests/vm/mmap-over-code.c -o tests/vm/mmap-over-code.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-code.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-over-code.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-over-code
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-over-code -a mmap-over-code -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-over-code < /dev/null 2> tests/vm/mmap-over-code.errors > tests/vm/mmap-over-code.output
 perl -I../.. ../../tests/vm/mmap-over-code.ck tests/vm/mmap-over-code tests/vm/mmap-over-code.result
-[31mFAIL tests/vm/mmap-over-code
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-code) begin
-  (mmap-over-code) open "sample.txt"
-  (mmap-over-code) try to mmap over code segment
-  (mmap-over-code) end
-Differences in `diff -u' format:
-  (mmap-over-code) begin
-  (mmap-over-code) open "sample.txt"
-  (mmap-over-code) try to mmap over code segment
-- (mmap-over-code) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-over-data.c -o tests/vm/mmap-over-data.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-data.d
+[32mpass tests/vm/mmap-over-code
+[0mi386-elf-gcc -c ../../tests/vm/mmap-over-data.c -o tests/vm/mmap-over-data.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-data.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-over-data.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-over-data
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-over-data -a mmap-over-data -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-over-data < /dev/null 2> tests/vm/mmap-over-data.errors > tests/vm/mmap-over-data.output
 perl -I../.. ../../tests/vm/mmap-over-data.ck tests/vm/mmap-over-data tests/vm/mmap-over-data.result
-[31mFAIL tests/vm/mmap-over-data
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-data) begin
-  (mmap-over-data) open "sample.txt"
-  (mmap-over-data) try to mmap over data segment
-  (mmap-over-data) end
-Differences in `diff -u' format:
-  (mmap-over-data) begin
-  (mmap-over-data) open "sample.txt"
-  (mmap-over-data) try to mmap over data segment
-- (mmap-over-data) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-over-stk.c -o tests/vm/mmap-over-stk.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-stk.d
+[32mpass tests/vm/mmap-over-data
+[0mi386-elf-gcc -c ../../tests/vm/mmap-over-stk.c -o tests/vm/mmap-over-stk.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-over-stk.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-over-stk.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-over-stk
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-over-stk -a mmap-over-stk -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-over-stk < /dev/null 2> tests/vm/mmap-over-stk.errors > tests/vm/mmap-over-stk.output
 perl -I../.. ../../tests/vm/mmap-over-stk.ck tests/vm/mmap-over-stk tests/vm/mmap-over-stk.result
-[31mFAIL tests/vm/mmap-over-stk
-[0mTest output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-stk) begin
-  (mmap-over-stk) open "sample.txt"
-  (mmap-over-stk) try to mmap over stack segment
-  (mmap-over-stk) end
-Differences in `diff -u' format:
-  (mmap-over-stk) begin
-  (mmap-over-stk) open "sample.txt"
-  (mmap-over-stk) try to mmap over stack segment
-- (mmap-over-stk) end
-
-(Process exit codes are excluded for matching purposes.)
-i386-elf-gcc -c ../../tests/vm/mmap-remove.c -o tests/vm/mmap-remove.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-remove.d
+[32mpass tests/vm/mmap-over-stk
+[0mi386-elf-gcc -c ../../tests/vm/mmap-remove.c -o tests/vm/mmap-remove.o -m32 -g -msoft-float -O0 -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/user -I. -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers  -MMD -MF tests/vm/mmap-remove.d
 i386-elf-gcc  -Wl,--build-id=none -nostdlib -static -Wl,-T,../../lib/user/user.lds tests/vm/mmap-remove.o tests/lib.o tests/main.o lib/user/entry.o libc.a -o tests/vm/mmap-remove
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/vm/mmap-remove -a mmap-remove -p ../../tests/vm/sample.txt -a sample.txt --swap-size=4 -- -q  -f run mmap-remove < /dev/null 2> tests/vm/mmap-remove.errors > tests/vm/mmap-remove.output
 perl -I../.. ../../tests/vm/mmap-remove.ck tests/vm/mmap-remove tests/vm/mmap-remove.result
@@ -765,10 +677,11 @@ perl -I../.. ../../tests/filesys/base/syn-write.ck tests/filesys/base/syn-write 
 [32mpass tests/filesys/base/syn-write
 [0m../../tests/make-grade ../.. results ../../tests/vm/Grading | tee grade
 warning: test tests/userprog/exec-bound-2 doesn't count for grading
-warning: test tests/userprog/sc-boundary-3 doesn't count for grading
 warning: test tests/userprog/exec-bound doesn't count for grading
+warning: test tests/userprog/sc-boundary-3 doesn't count for grading
 warning: test tests/userprog/exec-bound-3 doesn't count for grading
-TOTAL TESTING SCORE: 94.1%
+TOTAL TESTING SCORE: 100.0%
+ALL TESTED PASSED -- PERFECT SCORE
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -777,12 +690,12 @@ SUMMARY BY TEST SET
 Test Set                                      Pts Max  % Ttl  % Max
 --------------------------------------------- --- --- ------ ------
 tests/vm/Rubric.functionality                  55/ 55  50.0%/ 50.0%
-tests/vm/Rubric.robustness                     17/ 28   9.1%/ 15.0%
+tests/vm/Rubric.robustness                     28/ 28  15.0%/ 15.0%
 tests/userprog/Rubric.functionality           108/108  10.0%/ 10.0%
 tests/userprog/Rubric.robustness               88/ 88   5.0%/  5.0%
 tests/filesys/base/Rubric                      30/ 30  20.0%/ 20.0%
 --------------------------------------------- --- --- ------ ------
-Total                                                  94.1%/100.0%
+Total                                                 100.0%/100.0%
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -834,20 +747,20 @@ Robustness of virtual memory subsystem (tests/vm/Rubric.robustness):
 	- Test robustness of "mmap" system call.
 	     1/ 1 tests/vm/mmap-bad-fd
 	     1/ 1 tests/vm/mmap-inherit
-	  ** 0/ 1 tests/vm/mmap-null
+	     1/ 1 tests/vm/mmap-null
 	     1/ 1 tests/vm/mmap-zero
 
-	  ** 0/ 2 tests/vm/mmap-misalign
+	     2/ 2 tests/vm/mmap-misalign
 
-	  ** 0/ 2 tests/vm/mmap-over-code
-	  ** 0/ 2 tests/vm/mmap-over-data
-	  ** 0/ 2 tests/vm/mmap-over-stk
-	  ** 0/ 2 tests/vm/mmap-overlap
+	     2/ 2 tests/vm/mmap-over-code
+	     2/ 2 tests/vm/mmap-over-data
+	     2/ 2 tests/vm/mmap-over-stk
+	     2/ 2 tests/vm/mmap-overlap
 
 
 	- Section summary.
-	      8/ 14 tests passed
-	     17/ 28 points subtotal
+	     14/ 14 tests passed
+	     28/ 28 points subtotal
 
 Functionality of system calls (tests/userprog/Rubric.functionality):
 	- Test argument passing on Pintos command line.
@@ -983,376 +896,4 @@ Functionality of base file system (tests/filesys/base/Rubric):
 	     13/ 13 tests passed
 	     30/ 30 points subtotal
 
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-null FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-null) begin
-  (mmap-null) open "sample.txt"
-  (mmap-null) try to mmap at address 0
-  (mmap-null) end
-Differences in `diff -u' format:
-  (mmap-null) begin
-  (mmap-null) open "sample.txt"
-  (mmap-null) try to mmap at address 0
-- (mmap-null) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-null:
-
-Copying tests/vm/mmap-null to scratch partition...
-Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/mdHQfjW9Ex.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-null
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  52,377,600 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 75 sectors (37 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-null' into the file system...
-Putting 'sample.txt' into the file system...
-Erasing ustar archive...
-Executing 'mmap-null':
-(mmap-null) begin
-(mmap-null) open "sample.txt"
-(mmap-null) try to mmap at address 0
-mmap-null: exit(-1)
-Execution of 'mmap-null' complete.
-Timer: 60 ticks
-Thread: 37 idle ticks, 22 kernel ticks, 1 user ticks
-hda2 (filesys): 86 reads, 156 writes
-hda3 (scratch): 74 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1075 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-misalign FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-misalign) begin
-  (mmap-misalign) open "sample.txt"
-  (mmap-misalign) try to mmap at misaligned address
-  (mmap-misalign) end
-Differences in `diff -u' format:
-  (mmap-misalign) begin
-  (mmap-misalign) open "sample.txt"
-  (mmap-misalign) try to mmap at misaligned address
-- (mmap-misalign) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-misalign:
-
-Copying tests/vm/mmap-misalign to scratch partition...
-Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/4IyP3ddiFN.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-misalign
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 75 sectors (37 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-misalign' into the file system...
-Putting 'sample.txt' into the file system...
-Erasing ustar archive...
-Executing 'mmap-misalign':
-(mmap-misalign) begin
-(mmap-misalign) open "sample.txt"
-(mmap-misalign) try to mmap at misaligned address
-mmap-misalign: exit(-1)
-Execution of 'mmap-misalign' complete.
-Timer: 62 ticks
-Thread: 36 idle ticks, 24 kernel ticks, 2 user ticks
-hda2 (filesys): 86 reads, 156 writes
-hda3 (scratch): 74 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1117 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-over-code FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-code) begin
-  (mmap-over-code) open "sample.txt"
-  (mmap-over-code) try to mmap over code segment
-  (mmap-over-code) end
-Differences in `diff -u' format:
-  (mmap-over-code) begin
-  (mmap-over-code) open "sample.txt"
-  (mmap-over-code) try to mmap over code segment
-- (mmap-over-code) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-over-code:
-
-Copying tests/vm/mmap-over-code to scratch partition...
-Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/Se5v4FY2Ut.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-over-code
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 75 sectors (37 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-over-code' into the file system...
-Putting 'sample.txt' into the file system...
-Erasing ustar archive...
-Executing 'mmap-over-code':
-(mmap-over-code) begin
-(mmap-over-code) open "sample.txt"
-(mmap-over-code) try to mmap over code segment
-mmap-over-code: exit(-1)
-Execution of 'mmap-over-code' complete.
-Timer: 63 ticks
-Thread: 38 idle ticks, 23 kernel ticks, 2 user ticks
-hda2 (filesys): 86 reads, 156 writes
-hda3 (scratch): 74 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1121 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-over-data FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-data) begin
-  (mmap-over-data) open "sample.txt"
-  (mmap-over-data) try to mmap over data segment
-  (mmap-over-data) end
-Differences in `diff -u' format:
-  (mmap-over-data) begin
-  (mmap-over-data) open "sample.txt"
-  (mmap-over-data) try to mmap over data segment
-- (mmap-over-data) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-over-data:
-
-Copying tests/vm/mmap-over-data to scratch partition...
-Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/igK_ybuFPW.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-over-data
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  65,433,600 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 75 sectors (37 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-over-data' into the file system...
-Putting 'sample.txt' into the file system...
-Erasing ustar archive...
-Executing 'mmap-over-data':
-(mmap-over-data) begin
-(mmap-over-data) open "sample.txt"
-(mmap-over-data) try to mmap over data segment
-mmap-over-data: exit(-1)
-Execution of 'mmap-over-data' complete.
-Timer: 62 ticks
-Thread: 35 idle ticks, 27 kernel ticks, 0 user ticks
-hda2 (filesys): 86 reads, 156 writes
-hda3 (scratch): 74 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1120 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-over-stk FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-over-stk) begin
-  (mmap-over-stk) open "sample.txt"
-  (mmap-over-stk) try to mmap over stack segment
-  (mmap-over-stk) end
-Differences in `diff -u' format:
-  (mmap-over-stk) begin
-  (mmap-over-stk) open "sample.txt"
-  (mmap-over-stk) try to mmap over stack segment
-- (mmap-over-stk) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-over-stk:
-
-Copying tests/vm/mmap-over-stk to scratch partition...
-Copying ../../tests/vm/sample.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/3T7IAnuVvK.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-over-stk
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 75 sectors (37 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-over-stk' into the file system...
-Putting 'sample.txt' into the file system...
-Erasing ustar archive...
-Executing 'mmap-over-stk':
-(mmap-over-stk) begin
-(mmap-over-stk) open "sample.txt"
-(mmap-over-stk) try to mmap over stack segment
-mmap-over-stk: exit(-1)
-Execution of 'mmap-over-stk' complete.
-Timer: Timer: 64 ticks
-Thread: 38 idle ticks, 25 kernel ticks, 1 user ticks
-hda2 (filesys): 86 reads, 156 writes
-hda3 (scratch): 74 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1114 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-DETAILS OF tests/vm/mmap-overlap FAILURE:
-
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (mmap-overlap) begin
-  (mmap-overlap) open "zeros" once
-  (mmap-overlap) mmap "zeros"
-  (mmap-overlap) open "zeros" again
-  (mmap-overlap) try to mmap "zeros" again
-  (mmap-overlap) end
-Differences in `diff -u' format:
-  (mmap-overlap) begin
-  (mmap-overlap) open "zeros" once
-  (mmap-overlap) mmap "zeros"
-  (mmap-overlap) open "zeros" again
-  (mmap-overlap) try to mmap "zeros" again
-- (mmap-overlap) end
-
-(Process exit codes are excluded for matching purposes.)
-
-OUTPUT FROM tests/vm/mmap-overlap:
-
-Copying tests/vm/mmap-overlap to scratch partition...
-Copying tests/vm/zeros to scratch partition...
-qemu-system-i386 -device isa-debug-exit -drive format=raw,media=disk,index=0,file=/tmp/KiQDtvqSBl.dsk -m 4 -net none -nographic -monitor null
-Pintos hda1
-Loading.............
-Kernel command line: -q -f extract run mmap-overlap
-Pintos booting with 3,968 kB RAM...
-367 pages available in kernel pool.
-367 pages available in user pool.
-Calibrating timer...  104,755,200 loops/s.
-hda: 13,104 sectors (6 MB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 218 sectors (109 kB), Pintos OS kernel (20)
-hda2: 4,096 sectors (2 MB), Pintos file system (21)
-hda3: 87 sectors (43 kB), Pintos scratch (22)
-hda4: 8,192 sectors (4 MB), Pintos swap (23)
-filesys: using hda2
-scratch: using hda3
-swap: using hda4
-Formatting file system...done.
-Boot complete.
-Extracting ustar archive from scratch device into file system...
-Putting 'mmap-overlap' into the file system...
-Putting 'zeros' into the file system...
-Erasing ustar archive...
-Executing 'mmap-overlap':
-(mmap-overlap) begin
-(mmap-overlap) open "zeros" once
-(mmap-overlap) mmap "zeros"
-(mmap-overlap) open "zeros" again
-(mmap-overlap) try to mmap "zeros" again
-mmap-overlap: exit(-1)
-Execution of 'mmap-overlap' complete.
-Timer: 64 ticks
-Thread: 37 idle ticks, 25 kernel ticks, 2 user ticks
-hda2 (filesys): 90 reads, 180 writes
-hda3 (scratch): 86 reads, 2 writes
-hda4 (swap): 0 reads, 0 writes
-Console: 1158 characters output
-Keyboard: 0 keys pressed
-Exception: 5 page faults
-Powering off...
 make[1]: Leaving directory '/home/PKUOS/pintos/src/vm/build'
