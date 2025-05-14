@@ -80,6 +80,7 @@ init_proc_info (struct proc_info *proc_info, char **argv)
     proc_info->fd_table[i] = NULL;
   spt_init (&proc_info->sup_page_table);
   lock_init (&proc_info->spt_lock);
+  proc_info->esp = NULL;
   proc_info->ref_count = 1;
 }
 
@@ -672,14 +673,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char **argv)
 {
-  uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  struct proc_info *proc_info = thread_current ()->proc_info;
+  struct hash *spt = &proc_info->sup_page_table;
+  struct lock *spt_lock = &proc_info->spt_lock;
+
+  upage_t upage = ((upage_t) PHYS_BASE) - PGSIZE;
   int argc = 0;
-  
-  struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
-  lock_acquire (spt_lock);
-  bool install_success = spt_install_zero_page (
-        &thread_current ()->proc_info->sup_page_table, upage, true);
-  lock_release (spt_lock);
+
+  bool install_success = spt_install_zero_page (spt, spt_lock, upage, true);
   if (!install_success)
     return false;
 
@@ -714,7 +715,8 @@ setup_stack (void **esp, char **argv)
   /* fake return address: 4 bytes */
   *esp -= sizeof (void *);
   *(void **) *esp = 0;
-  
+
+  proc_info->esp = (uaddr_t) *esp;
   return true;
 }
 
@@ -726,9 +728,7 @@ lazy_load_page (size_t read_bytes, size_t zero_bytes, struct file *file,
 {
   struct hash *spt = &thread_current ()->proc_info->sup_page_table;
   struct lock *spt_lock = &thread_current ()->proc_info->spt_lock;
-  lock_acquire (spt_lock);
-  bool success = spt_install_bin_page (spt, upage, file, ofs,
-                              read_bytes, zero_bytes, writable);
-  lock_release (spt_lock);
+  bool success = spt_install_bin_page (spt, spt_lock, upage, file, ofs,
+                                       read_bytes, zero_bytes, writable);
   return success;
 }

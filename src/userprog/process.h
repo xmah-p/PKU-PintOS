@@ -5,11 +5,14 @@
 
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 #include "filesys/file.h"
 
 #define MAX_FD 128 /**< Maximum number of file descriptors. */
 
 typedef int pid_t; /**< Process ID type. */
+typedef void * uaddr_t; /**< User virtual address type. */
+#define STACK_SIZE (64 * PGSIZE) /**< Stack size. */
 #define PID_ERROR ((pid_t) -1)          /**< Error value for pid_t. */
 
 struct proc_info
@@ -31,6 +34,7 @@ struct proc_info
     /* VM */
     struct hash sup_page_table;    /**< Supplemental page table. */
     struct lock spt_lock;          /**< Lock for the sup_page_table. */
+    uaddr_t esp;                   /**< Stack pointer. */
   };
 
 /* pid-tid mapping */

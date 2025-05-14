@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "threads/vaddr.h"
 #include "vm/page.h"
 
 /** Number of page faults processed. */
@@ -132,6 +133,39 @@ handle_syscall_bad_ref (struct intr_frame *f)
   f->eax = -1;
 }
 
+/* Check if the fault address is in the stack region and extend
+   the stack if necessary. 
+   If the page fault is caused by a user process, use the intr_frame's
+   esp (passed as argument). Otherwise, it must be caused by system call,
+   and we use the thread's proc_info->esp.  */
+static void
+extend_stack (void *fault_addr, bool user, void *esp)
+{
+  struct proc_info *proc_info = thread_current ()->proc_info;
+  uaddr_t stack_top = PHYS_BASE;
+  uaddr_t stack_bottom = stack_top - STACK_SIZE;
+  if (!user)
+    esp = proc_info->esp;
+
+  /* Stack region is:
+      - [esp, stack_top)
+      - esp - 4, for PUSH
+      - esp - 32, for PUSHA
+     while esp should be in the range [stack_bottom, stack_top) */
+  bool valid_esp = esp >= stack_bottom && esp < stack_top;
+  bool in_stack_region = valid_esp && (
+                           (fault_addr >= esp && fault_addr < stack_top) 
+                        || (fault_addr == esp - 4)
+                        || (fault_addr == esp - 32));
+  if (in_stack_region)
+    {
+      /* Extend the stack */
+      upage_t upage = pg_round_down (fault_addr);
+      spt_install_zero_page (&proc_info->sup_page_table, 
+                             &proc_info->spt_lock, upage, true);
+    }
+}
+
 /** Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -175,6 +209,7 @@ page_fault (struct intr_frame *f)
   /* Not present: load page from supplemental page table. */
   if (not_present)
     {
+      extend_stack (fault_addr, user, f->esp);
       if (load_page_by_spt (fault_addr)) 
         return;
       if (!user)

@@ -51,12 +51,11 @@ spt_init (struct hash *spt)
 }
 
 /* Create and insert a new supplemental page table entry for 
-   file-backed page upage. 
-   Should acquire and release spt_lock before and after! */
-bool spt_install_bin_page(struct hash *spt, upage_t upage,
-                                 struct file *file, off_t ofs,
-                                 size_t read_bytes, size_t zero_bytes,
-                                 bool writable) 
+   file-backed page upage. */
+bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
+                           upage_t upage, struct file *file, off_t ofs,
+                           size_t read_bytes, size_t zero_bytes,
+                           bool writable)
 {
   struct spt_entry *spte = malloc (sizeof *spte);
   if (!spte)
@@ -69,16 +68,17 @@ bool spt_install_bin_page(struct hash *spt, upage_t upage,
   spte->zero_bytes = zero_bytes;
   spte->writable = writable;
   spte->swap_slot = (block_sector_t) -1;
-  hash_insert (spt, &spte->h_elem);
   lock_init (&spte->spte_lock);
+  lock_acquire (spt_lock);
+  hash_insert (spt, &spte->h_elem);
+  lock_release (spt_lock);
   return true;
 }
 
 /* Create and insert a new supplemental page table entry for
-   zeroed page upage. 
-   Should acquire and release spt_lock before and after! */
-bool spt_install_zero_page (struct hash *spt, upage_t upage, 
-                                   bool writable)
+   zeroed page upage. */
+bool spt_install_zero_page (struct hash *spt, struct lock *spt_lock, 
+                            upage_t upage, bool writable)
 {
   struct spt_entry *spte = malloc (sizeof *spte);
   if (!spte)
@@ -91,8 +91,10 @@ bool spt_install_zero_page (struct hash *spt, upage_t upage,
   spte->zero_bytes = 0;
   spte->writable = writable;
   spte->swap_slot = (block_sector_t) -1;
-  hash_insert (spt, &spte->h_elem);
   lock_init (&spte->spte_lock);
+  lock_acquire (spt_lock);
+  hash_insert (spt, &spte->h_elem);
+  lock_release (spt_lock);
   return true;
 }
 

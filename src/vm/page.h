@@ -34,15 +34,15 @@ void spt_init (struct hash *spt);
 
 /* Create and insert a new supplemental page table entry for file-backed 
    page upage. */
-bool spt_install_bin_page (struct hash *spt, upage_t upage,
-                                  struct file *file, off_t ofs,
-                                  size_t read_bytes, size_t zero_bytes,
-                                  bool writable);
+bool spt_install_bin_page (struct hash *spt, struct lock *spt_lock,
+                           upage_t upage, struct file *file, off_t ofs,
+                           size_t read_bytes, size_t zero_bytes,
+                           bool writable);
 
 /* Create and insert a new supplemental page table entry for zeroed page
    upage. */
-bool spt_install_zero_page (struct hash *spt, upage_t upage,
-                                   bool writable);
+bool spt_install_zero_page (struct hash *spt, struct lock *spt_lock, 
+                            upage_t upage, bool writable);
 
 /* Destroy the supplemental page table, freeing supplemental page
    table entries, swap slots, frame table entries and kernel pages. */
